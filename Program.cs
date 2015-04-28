@@ -32,6 +32,10 @@ namespace SteamTokens
             Console.WriteLine("SteamDB bot simply can't get them because it doesn't own these games");
             Console.WriteLine("Using this software will help SteamDB, thanks!");
             Console.WriteLine(" ");
+            Console.WriteLine("A sentry (SteamGuard) file will be saved locally, but your");
+            Console.WriteLine("username and password will not be stored. This software uses");
+            Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
+            Console.WriteLine(" ");
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
@@ -125,7 +129,7 @@ namespace SteamTokens
 
         static void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
         {
-            Console.WriteLine("Updating sentryfile...");
+            Console.WriteLine("Updating sentryfile so that you don't need to authenticate with SteamGuard next time.");
 
             byte[] sentryHash = CryptoHelper.SHAHash(callback.Data);
 
