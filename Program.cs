@@ -175,7 +175,7 @@ namespace SteamTokens
         static void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
             bool isSteamGuard = callback.Result == EResult.AccountLogonDenied;
-            bool is2FA = callback.Result == EResult.AccountLogonDeniedNeedTwoFactorCode;
+            bool is2FA = callback.Result == EResult.AccountLoginDeniedNeedTwoFactor;
 
             if (isSteamGuard || is2FA)
             {
