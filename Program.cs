@@ -39,8 +39,16 @@ namespace SteamTokens
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
-            Console.Write("Enter your Steam password: ");
-            pass = ReadPassword();
+
+            if (string.IsNullOrEmpty(user))
+            {
+                Console.WriteLine("Will login as an anonymous account");
+            }
+            else
+            {
+                Console.Write("Enter your Steam password: ");
+                pass = ReadPassword();
+            }
 
             steamClient = new SteamClient();
             manager = new CallbackManager(steamClient);
@@ -117,14 +125,21 @@ namespace SteamTokens
                 sentryHash = CryptoHelper.SHAHash(sentryFile);
             }
 
-            steamUser.LogOn(new SteamUser.LogOnDetails
-                {
-                    Username = user,
-                    Password = pass,
-                    AuthCode = authCode,
-                    TwoFactorCode = twoFactorAuth,
-                    SentryFileHash = sentryHash,
-                });
+            if (string.IsNullOrEmpty(user))
+            {
+                steamUser.LogOnAnonymous();
+            }
+            else
+            {
+                steamUser.LogOn(new SteamUser.LogOnDetails
+                    {
+                        Username = user,
+                        Password = pass,
+                        AuthCode = authCode,
+                        TwoFactorCode = twoFactorAuth,
+                        SentryFileHash = sentryHash,
+                    });
+            }
         }
 
         static void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
@@ -224,7 +239,8 @@ namespace SteamTokens
         static void OnPICSTokens(SteamApps.PICSTokensCallback callback)
         {
             var tokens = callback.AppTokens.Where(app => app.Value > 0).ToList();
-            string postData = "steamid=" + steamUser.SteamID.ConvertToUInt64() + "&";
+            var steamid = steamUser.SteamID.ConvertToUInt64();
+            string postData = "steamid=" + steamid + "&";
 
             Console.WriteLine(" ");
             Console.WriteLine("Tokens granted: {0} ({1} non-zero tokens) - Tokens denied: {2}", callback.AppTokens.Count, tokens.Count(), callback.AppTokensDenied.Count);
@@ -243,7 +259,7 @@ namespace SteamTokens
 
                 if (Console.ReadLine().Equals("yes"))
                 {
-                    Console.WriteLine("Submitting tokens to SteamDB...");
+                    Console.WriteLine("Submitting tokens to SteamDB... ({0})", steamid);
 
                     try
                     {
