@@ -56,13 +56,13 @@ namespace SteamTokens
             steamUser = steamClient.GetHandler<SteamUser>();
             steamApps = steamClient.GetHandler<SteamApps>();
 
-            new Callback<SteamClient.ConnectedCallback>(OnConnected, manager);
-            new Callback<SteamClient.DisconnectedCallback>(OnDisconnected, manager);
-            new Callback<SteamUser.LoggedOnCallback>(OnLoggedOn, manager);
-            new Callback<SteamUser.LoggedOffCallback>(OnLoggedOff, manager);
-            new Callback<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth, manager);
-            new Callback<SteamApps.PICSChangesCallback>(OnPICSChanges, manager);
-            new Callback<SteamApps.PICSTokensCallback>(OnPICSTokens, manager);
+            manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
+            manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
+            manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
+            manager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
+            manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
+            manager.Subscribe<SteamApps.PICSChangesCallback>(OnPICSChanges);
+            manager.Subscribe<SteamApps.PICSTokensCallback>(OnPICSTokens);
 
             isRunning = true;
 
