@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using SteamKit2;
+using SteamKit2.Internal;
 
 namespace SteamTokens
 {
@@ -119,9 +120,9 @@ namespace SteamTokens
             Console.WriteLine("Connected to Steam! Logging in '{0}'...", user);
 
             byte[] sentryHash = null;
-            if (File.Exists("sentry_" + user + ".bin"))
+            if (File.Exists("sentry.bin"))
             {
-                byte[] sentryFile = File.ReadAllBytes("sentry_" + user + ".bin");
+                byte[] sentryFile = File.ReadAllBytes("sentry.bin");
                 sentryHash = CryptoHelper.SHAHash(sentryFile);
             }
 
@@ -131,14 +132,22 @@ namespace SteamTokens
             }
             else
             {
-                steamUser.LogOn(new SteamUser.LogOnDetails
-                    {
-                        Username = user,
-                        Password = pass,
-                        AuthCode = authCode,
-                        TwoFactorCode = twoFactorAuth,
-                        SentryFileHash = sentryHash,
-                    });
+                // Send a logon message ourselves so that existing Steam client connection doesn't drop
+                var logon = new ClientMsgProtobuf<CMsgClientLogon>(EMsg.ClientLogon);
+
+                var steamId = new SteamID(0, SteamID.ConsoleInstance, steamClient.ConnectedUniverse, EAccountType.Individual);
+
+                logon.ProtoHeader.client_sessionid = 0;
+                logon.ProtoHeader.steamid = steamId.ConvertToUInt64();
+                logon.Body.account_name = user;
+                logon.Body.password = pass;
+                logon.Body.protocol_version = MsgClientLogon.CurrentProtocol;
+                logon.Body.auth_code = authCode;
+                logon.Body.two_factor_code = twoFactorAuth;
+                logon.Body.sha_sentryfile = sentryHash;
+                logon.Body.eresult_sentryfile = (int)(sentryHash != null ? EResult.OK : EResult.FileNotFound);
+
+                steamClient.Send(logon);
             }
         }
 
@@ -148,7 +157,7 @@ namespace SteamTokens
 
             byte[] sentryHash = CryptoHelper.SHAHash(callback.Data);
 
-            File.WriteAllBytes("sentry_" + user + ".bin", callback.Data);
+            File.WriteAllBytes("sentry.bin", callback.Data);
 
             steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
                 {
