@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using SteamKit2;
 using SteamKit2.Internal;
+using System.Collections.Generic;
 
 namespace SteamTokens
 {
@@ -62,7 +63,6 @@ namespace SteamTokens
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
             manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
-            manager.Subscribe<SteamApps.PICSChangesCallback>(OnPICSChanges);
             manager.Subscribe<SteamApps.PICSTokensCallback>(OnPICSTokens);
 
             isRunning = true;
@@ -74,6 +74,11 @@ namespace SteamTokens
             while (isRunning)
             {
                 manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+            }
+
+            if (!isDisconnecting)
+            {
+                Console.ReadKey();
             }
         }
 
@@ -228,21 +233,21 @@ namespace SteamTokens
                 return;
             }
 
-            Console.WriteLine("Successfully logged on, requesting changelist #1");
+            var apps = new List<uint>();
 
-            steamApps.PICSGetChangesSince(1, true, false);
+            for (uint i = 1; i <= 1000000; i++)
+            {
+                apps.Add(i);
+            }
+
+            Console.WriteLine("Requesting tokens");
+
+            steamApps.PICSGetAccessTokens(apps, Enumerable.Empty<uint>());
         }
 
         static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
             Console.WriteLine("Logged off of Steam: {0}", callback.Result);
-        }
-
-        static void OnPICSChanges(SteamApps.PICSChangesCallback callback)
-        {
-            Console.WriteLine("Got {0} apps", callback.AppChanges.Count);
-
-            steamApps.PICSGetAccessTokens(callback.AppChanges.Keys, Enumerable.Empty<uint>());
         }
 
         static void OnPICSTokens(SteamApps.PICSTokensCallback callback)
