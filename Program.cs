@@ -39,6 +39,15 @@ namespace SteamTokens
             Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
             Console.WriteLine(" ");
 
+            var loadServersTask = SteamDirectory.Initialize(0);
+            loadServersTask.Wait();
+
+            if (loadServersTask.IsFaulted)
+            {
+                Console.WriteLine("Error loading server list from directory: {0}", loadServersTask.Exception.Message);
+                return;
+            }
+
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
 
@@ -137,22 +146,15 @@ namespace SteamTokens
             }
             else
             {
-                // Send a logon message ourselves so that existing Steam client connection doesn't drop
-                var logon = new ClientMsgProtobuf<CMsgClientLogon>(EMsg.ClientLogon);
-
-                var steamId = new SteamID(0, SteamID.ConsoleInstance, steamClient.ConnectedUniverse, EAccountType.Individual);
-
-                logon.ProtoHeader.client_sessionid = 0;
-                logon.ProtoHeader.steamid = steamId.ConvertToUInt64();
-                logon.Body.account_name = user;
-                logon.Body.password = pass;
-                logon.Body.protocol_version = MsgClientLogon.CurrentProtocol;
-                logon.Body.auth_code = authCode;
-                logon.Body.two_factor_code = twoFactorAuth;
-                logon.Body.sha_sentryfile = sentryHash;
-                logon.Body.eresult_sentryfile = (int)(sentryHash != null ? EResult.OK : EResult.FileNotFound);
-
-                steamClient.Send(logon);
+                steamUser.LogOn(new SteamUser.LogOnDetails
+                {
+                    LoginID = 1337,
+                    Username = user,
+                    Password = pass,
+                    AuthCode = authCode,
+                    TwoFactorCode = twoFactorAuth,
+                    SentryFileHash = sentryHash,
+                });
             }
         }
 
@@ -194,7 +196,7 @@ namespace SteamTokens
                 return;
             }
 
-            Console.WriteLine("Disconnected from Steam, reconnecting in 5...");
+            Console.WriteLine("Disconnected from Steam, reconnecting in 5 seconds...");
 
             Thread.Sleep(TimeSpan.FromSeconds(5));
 
@@ -240,7 +242,7 @@ namespace SteamTokens
                 apps.Add(i);
             }
 
-            Console.WriteLine("Requesting tokens");
+            Console.WriteLine("Requesting tokens, please wait...");
 
             steamApps.PICSGetAccessTokens(apps, Enumerable.Empty<uint>());
         }

@@ -10,6 +10,7 @@
     <UseMSBuildEngine>False</UseMSBuildEngine>
     <StartupObject>SteamTokens.Program</StartupObject>
     <ApplicationIcon>1429117524_175370.ico</ApplicationIcon>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <DebugSymbols>true</DebugSymbols>
@@ -36,7 +37,7 @@
       <HintPath>packages\protobuf-net.2.0.0.668\lib\net40\protobuf-net.dll</HintPath>
     </Reference>
     <Reference Include="SteamKit2">
-      <HintPath>packages\SteamKit2.1.6.5\lib\net40\SteamKit2.dll</HintPath>
+      <HintPath>packages\SteamKit2.1.7.0\lib\net45\SteamKit2.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
