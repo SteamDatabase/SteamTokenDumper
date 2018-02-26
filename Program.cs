@@ -25,6 +25,8 @@ namespace SteamTokens
 
         static void Main()
         {
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+
             Console.WriteLine("This program will login into your Steam account using SteamKit,");
             Console.WriteLine("request PICS access tokens for all available apps on Steam,");
             Console.WriteLine("and then submit all received tokens to SteamDB.");
