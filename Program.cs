@@ -1,12 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
 using SteamKit2;
-using SteamKit2.Internal;
-using System.Collections.Generic;
 
 namespace SteamTokens
 {
@@ -71,7 +70,6 @@ namespace SteamTokens
             manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
-            manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
             manager.Subscribe<SteamApps.PICSTokensCallback>(OnPICSTokens);
 
             isRunning = true;
@@ -133,13 +131,6 @@ namespace SteamTokens
 
             Console.WriteLine("Connected to Steam! Logging in '{0}'...", user);
 
-            byte[] sentryHash = null;
-            if (File.Exists("sentry.bin"))
-            {
-                byte[] sentryFile = File.ReadAllBytes("sentry.bin");
-                sentryHash = CryptoHelper.SHAHash(sentryFile);
-            }
-
             if (string.IsNullOrEmpty(user))
             {
                 steamUser.LogOnAnonymous();
@@ -153,36 +144,8 @@ namespace SteamTokens
                     Password = pass,
                     AuthCode = authCode,
                     TwoFactorCode = twoFactorAuth,
-                    SentryFileHash = sentryHash,
                 });
             }
-        }
-
-        static void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
-        {
-            Console.WriteLine("Updating sentryfile so that you don't need to authenticate with SteamGuard next time.");
-
-            byte[] sentryHash = CryptoHelper.SHAHash(callback.Data);
-
-            File.WriteAllBytes("sentry.bin", callback.Data);
-
-            steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
-                {
-                    JobID = callback.JobID,
-
-                    FileName = callback.FileName,
-
-                    BytesWritten = callback.BytesToWrite,
-                    FileSize = callback.Data.Length,
-                    Offset = callback.Offset,
-
-                    Result = EResult.OK,
-                    LastError = 0,
-
-                    OneTimePassword = callback.OneTimePassword,
-
-                    SentryFileHash = sentryHash,
-                });
         }
 
         static void OnDisconnected(SteamClient.DisconnectedCallback callback)
