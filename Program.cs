@@ -12,14 +12,6 @@ namespace SteamTokens
 {
     class Program
     {
-        public class SteamKitLogger : IDebugListener
-        {
-            public void WriteLine(string category, string msg)
-            {
-                Console.WriteLine("[{0}] {1}", category, msg);
-            }
-        }
-
         static SteamClient steamClient;
         static CallbackManager manager;
 
@@ -48,18 +40,6 @@ namespace SteamTokens
             Console.WriteLine("username and password will not be stored. This software uses");
             Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
             Console.WriteLine(" ");
-
-            DebugLog.AddListener(new SteamKitLogger());
-            DebugLog.Enabled = true;
-
-            /*var loadServersTask = SteamDirectory.Initialize(0);
-            loadServersTask.Wait();
-
-            if (loadServersTask.IsFaulted)
-            {
-                Console.WriteLine("Error loading server list from directory: {0}", loadServersTask.Exception.Message);
-                return;
-            }*/
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
