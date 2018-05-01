@@ -5,12 +5,21 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using SteamKit2;
 
 namespace SteamTokens
 {
     class Program
     {
+        public class SteamKitLogger : IDebugListener
+        {
+            public void WriteLine(string category, string msg)
+            {
+                Console.WriteLine("[{0}] {1}", category, msg);
+            }
+        }
+
         static SteamClient steamClient;
         static CallbackManager manager;
 
@@ -40,14 +49,17 @@ namespace SteamTokens
             Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
             Console.WriteLine(" ");
 
-            var loadServersTask = SteamDirectory.Initialize(0);
+            DebugLog.AddListener(new SteamKitLogger());
+            DebugLog.Enabled = true;
+
+            /*var loadServersTask = SteamDirectory.Initialize(0);
             loadServersTask.Wait();
 
             if (loadServersTask.IsFaulted)
             {
                 Console.WriteLine("Error loading server list from directory: {0}", loadServersTask.Exception.Message);
                 return;
-            }
+            }*/
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
@@ -72,7 +84,6 @@ namespace SteamTokens
             manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
-            manager.Subscribe<SteamApps.PICSTokensCallback>(OnPICSTokens);
 
             isRunning = true;
 
@@ -168,7 +179,21 @@ namespace SteamTokens
             steamClient.Connect();
         }
 
-        static void OnLoggedOn(SteamUser.LoggedOnCallback callback)
+        static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
+        {
+            if (isDisconnecting)
+            {
+                isRunning = false;
+
+                Console.WriteLine("Exiting...");
+
+                return;
+            }
+
+            Console.WriteLine("Logged off of Steam: {0}", callback.Result);
+        }
+
+        static async void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
             bool isSteamGuard = callback.Result == EResult.AccountLogonDenied;
             bool is2FA = callback.Result == EResult.AccountLoginDeniedNeedTwoFactor;
@@ -200,88 +225,96 @@ namespace SteamTokens
                 return;
             }
 
-            var apps = new List<uint>();
-
-            for (uint i = 1; i <= 1000000; i++)
-            {
-                apps.Add(i);
-            }
-
-            Console.WriteLine("Requesting tokens, please wait...");
-
-            steamApps.PICSGetAccessTokens(apps, Enumerable.Empty<uint>());
+            await RequestTokens();
         }
 
-        static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
+        static async Task RequestTokens()
         {
-            Console.WriteLine("Logged off of Steam: {0}", callback.Result);
-        }
+            const int APPS_PER_REQUEST = 20_000;
+            var empty = Enumerable.Empty<uint>().ToList();
+            var grantedTokens = 0;
+            var postData = $"steamid={steamUser.SteamID.ConvertToUInt64()}&";
 
-        static void OnPICSTokens(SteamApps.PICSTokensCallback callback)
-        {
-            var tokens = callback.AppTokens.Where(app => app.Value > 0).ToList();
-            var steamid = steamUser.SteamID.ConvertToUInt64();
-            string postData = "steamid=" + steamid + "&";
-
-            Console.WriteLine(" ");
-            Console.WriteLine("Tokens granted: {0} ({1} non-zero tokens) - Tokens denied: {2}", callback.AppTokens.Count, tokens.Count(), callback.AppTokensDenied.Count);
-
-            foreach (var token in tokens)
+            for (uint i = 1; i <= 1_000_000; i += APPS_PER_REQUEST)
             {
-                Console.WriteLine("App: {0} - Token: {1}", token.Key, token.Value);
+                var apps = new List<uint>();
 
-                postData += "apps[]=" + token.Key + "_" + token.Value + "&";
-            }
-
-            if (tokens.Any())
-            {
-                Console.WriteLine(" ");
-                Console.Write("Would you like to submit these tokens to SteamDB? Type 'yes' to submit: ");
-
-                if (Console.ReadLine().Equals("yes"))
+                for (var a = i; a < i + APPS_PER_REQUEST; a++)
                 {
-                    Console.WriteLine("Submitting tokens to SteamDB... ({0})", steamid);
-
-                    try
-                    {
-                        var rqst = (HttpWebRequest)WebRequest.Create("https://steamdb.info/api/SubmitToken/");
-
-                        rqst.Method = "POST";
-                        rqst.ContentType = "application/x-www-form-urlencoded";
-                        rqst.UserAgent = "SteamTokenDumper";
-                        rqst.KeepAlive = false;
-
-                        byte[] byteData = Encoding.UTF8.GetBytes(postData);
-                        rqst.ContentLength = byteData.Length;
-
-                        using (var postStream = rqst.GetRequestStream())
-                        {
-                            postStream.Write(byteData, 0, byteData.Length);
-                            postStream.Close();
-                        }
-
-                        using (var webResponse = rqst.GetResponse())
-                        {
-                            using (var responseStream = new StreamReader(webResponse.GetResponseStream()))
-                            {
-                                responseStream.ReadToEnd();
-                                responseStream.Close();
-                            }
-                        }
-
-                        Console.WriteLine("Submitted, thanks!");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine("Whoops: {0}", e.Message);
-                    }
+                    apps.Add(a);
                 }
+                
+                var callback = await steamApps.PICSGetAccessTokens(apps, empty);
+                var tokens = callback.AppTokens.Where(app => app.Value > 0).ToList();
+
+                Console.WriteLine($"Range {i}-{i+APPS_PER_REQUEST-1} - Tokens granted: {callback.AppTokens.Count} - Tokens denied: {callback.AppTokensDenied.Count}");
+
+                foreach (var token in tokens)
+                {
+                    Console.WriteLine("App: {0} - Token: {1}", token.Key, token.Value);
+
+                    postData += $"apps[]={token.Key}_{token.Value}&";
+                    grantedTokens++;
+                }
+            }
+            
+            Console.WriteLine($"{grantedTokens} non-zero tokens granted.");
+
+            if (grantedTokens > 0)
+            {
+                SendTokens(postData);
             }
 
             isDisconnecting = true;
 
             steamUser.LogOff();
-            steamClient.Disconnect();
+        }
+
+        static void SendTokens(string postData)
+        {
+            Console.WriteLine(" ");
+            Console.Write("Would you like to submit these tokens to SteamDB? Type 'yes' to submit: ");
+
+            if (!Console.ReadLine().Equals("yes"))
+            {
+                return;
+            }
+
+            Console.WriteLine("Submitting tokens to SteamDB...");
+
+            try
+            {
+                var rqst = (HttpWebRequest)WebRequest.Create("https://steamdb.info/api/SubmitToken/");
+
+                rqst.Method = "POST";
+                rqst.ContentType = "application/x-www-form-urlencoded";
+                rqst.UserAgent = "SteamTokenDumper";
+                rqst.KeepAlive = false;
+
+                byte[] byteData = Encoding.UTF8.GetBytes(postData);
+                rqst.ContentLength = byteData.Length;
+
+                using (var postStream = rqst.GetRequestStream())
+                {
+                    postStream.Write(byteData, 0, byteData.Length);
+                    postStream.Close();
+                }
+
+                using (var webResponse = rqst.GetResponse())
+                {
+                    using (var responseStream = new StreamReader(webResponse.GetResponseStream()))
+                    {
+                        responseStream.ReadToEnd();
+                        responseStream.Close();
+                    }
+                }
+
+                Console.WriteLine("Submitted, thanks!");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Whoops: {0}", e.Message);
+            }
         }
     }
 }
