@@ -75,18 +75,17 @@ namespace SteamTokens
             {
                 manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
             }
-
-            if (!isDisconnecting)
-            {
-                Console.ReadKey();
-            }
+            
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
         }
 
         // some shitty function from google
         static string ReadPassword()
         {
-            string password = "";
-            ConsoleKeyInfo info = Console.ReadKey(true);
+            var password = "";
+            var info = Console.ReadKey(true);
+
             while (info.Key != ConsoleKey.Enter)
             {
                 if (info.Key != ConsoleKey.Backspace)
@@ -99,15 +98,18 @@ namespace SteamTokens
                     if (!string.IsNullOrEmpty(password))
                     {
                         password = password.Substring(0, password.Length - 1);
-                        int pos = Console.CursorLeft;
+                        var pos = Console.CursorLeft;
                         Console.SetCursorPosition(pos - 1, Console.CursorTop);
                         Console.Write(" ");
                         Console.SetCursorPosition(pos - 1, Console.CursorTop);
                     }
                 }
+
                 info = Console.ReadKey(true);
             }
+
             Console.WriteLine();
+
             return password;
         }
 
@@ -210,7 +212,7 @@ namespace SteamTokens
 
         static async Task RequestTokens()
         {
-            const int APPS_PER_REQUEST = 20_000;
+            const int APPS_PER_REQUEST = 10_000;
             var empty = Enumerable.Empty<uint>().ToList();
             var grantedTokens = 0;
             var postData = $"steamid={steamUser.SteamID.ConvertToUInt64()}&";
