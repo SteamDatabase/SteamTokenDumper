@@ -10,36 +10,46 @@ using SteamKit2;
 
 namespace SteamTokens
 {
-    class Program
+    internal static class Program
     {
-        static SteamClient steamClient;
-        static CallbackManager manager;
+        private const int APPS_PER_REQUEST = 10_000;
+        private const int APPS_TO_REQUEST = 1_200_000;
 
-        static SteamUser steamUser;
-        static SteamApps steamApps;
+        private static SteamClient steamClient;
+        private static CallbackManager manager;
 
-        static bool isDisconnecting;
-        static bool isRunning;
+        private static SteamUser steamUser;
+        private static SteamApps steamApps;
 
-        static string user, pass;
-        static string authCode, twoFactorAuth;
+        private static bool isDisconnecting;
+        private static bool isRunning;
 
-        static void Main()
+        private static string user;
+        private static string pass;
+        private static string authCode;
+        private static string twoFactorAuth;
+
+        public static void Main()
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
+            Console.ResetColor();
+            Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("This program will login into your Steam account using SteamKit,");
             Console.WriteLine("request PICS access tokens for all available apps on Steam,");
             Console.WriteLine("and then submit all received tokens to SteamDB.");
             Console.WriteLine(" ");
+            Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("All tokens are GLOBAL, and are not unique to your account,");
             Console.WriteLine("SteamDB bot simply can't get them because it doesn't own these games");
             Console.WriteLine("Using this software will help SteamDB, thanks!");
             Console.WriteLine(" ");
+            Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("A sentry (SteamGuard) file will be saved locally, but your");
             Console.WriteLine("username and password will not be stored. This software uses");
             Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
             Console.WriteLine(" ");
+            Console.ResetColor();
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
@@ -75,13 +85,13 @@ namespace SteamTokens
             {
                 manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
             }
-            
+
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
         }
 
         // some shitty function from google
-        static string ReadPassword()
+        private static string ReadPassword()
         {
             var password = "";
             var info = Console.ReadKey(true);
@@ -113,7 +123,7 @@ namespace SteamTokens
             return password;
         }
 
-        static void OnConnected(SteamClient.ConnectedCallback callback)
+        private static void OnConnected(SteamClient.ConnectedCallback callback)
         {
             if (callback.Result != EResult.OK)
             {
@@ -143,7 +153,7 @@ namespace SteamTokens
             }
         }
 
-        static void OnDisconnected(SteamClient.DisconnectedCallback callback)
+        private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
         {
             if (isDisconnecting)
             {
@@ -161,7 +171,7 @@ namespace SteamTokens
             steamClient.Connect();
         }
 
-        static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
+        private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
         {
             if (isDisconnecting)
             {
@@ -175,7 +185,7 @@ namespace SteamTokens
             Console.WriteLine("Logged off of Steam: {0}", callback.Result);
         }
 
-        static async void OnLoggedOn(SteamUser.LoggedOnCallback callback)
+        private static async void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
             bool isSteamGuard = callback.Result == EResult.AccountLogonDenied;
             bool is2FA = callback.Result == EResult.AccountLoginDeniedNeedTwoFactor;
@@ -207,17 +217,16 @@ namespace SteamTokens
                 return;
             }
 
-            await RequestTokens();
+            await RequestTokens().ConfigureAwait(false);
         }
 
-        static async Task RequestTokens()
+        private static async Task RequestTokens()
         {
-            const int APPS_PER_REQUEST = 10_000;
             var empty = Enumerable.Empty<uint>().ToList();
             var grantedTokens = 0;
             var postData = $"steamid={steamUser.SteamID.ConvertToUInt64()}&";
 
-            for (uint i = 1; i <= 1_000_000; i += APPS_PER_REQUEST)
+            for (uint i = 1; i <= APPS_TO_REQUEST; i += APPS_PER_REQUEST)
             {
                 var apps = new List<uint>();
 
@@ -225,11 +234,13 @@ namespace SteamTokens
                 {
                     apps.Add(a);
                 }
-                
+
                 var callback = await steamApps.PICSGetAccessTokens(apps, empty);
                 var tokens = callback.AppTokens.Where(app => app.Value > 0).ToList();
 
                 Console.WriteLine($"Range {i}-{i+APPS_PER_REQUEST-1} - Tokens granted: {callback.AppTokens.Count} - Tokens denied: {callback.AppTokensDenied.Count}");
+
+                Console.ForegroundColor = ConsoleColor.Blue;
 
                 foreach (var token in tokens)
                 {
@@ -238,8 +249,10 @@ namespace SteamTokens
                     postData += $"apps[]={token.Key}_{token.Value}&";
                     grantedTokens++;
                 }
+
+                Console.ResetColor();
             }
-            
+
             Console.WriteLine($"{grantedTokens} non-zero tokens granted.");
 
             if (grantedTokens > 0)
@@ -252,10 +265,13 @@ namespace SteamTokens
             steamUser.LogOff();
         }
 
-        static void SendTokens(string postData)
+        private static void SendTokens(string postData)
         {
             Console.WriteLine(" ");
+            Console.BackgroundColor = ConsoleColor.DarkYellow;
+            Console.ForegroundColor = ConsoleColor.Black;
             Console.Write("Would you like to submit these tokens to SteamDB? Type 'yes' to submit: ");
+            Console.ResetColor();
 
             if (!Console.ReadLine().Equals("yes"))
             {
