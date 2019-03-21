@@ -299,16 +299,19 @@ namespace SteamTokens
                     postStream.Close();
                 }
 
+                string content;
+
                 using (var webResponse = rqst.GetResponse())
                 {
                     using (var responseStream = new StreamReader(webResponse.GetResponseStream()))
                     {
-                        responseStream.ReadToEnd();
+                        content = responseStream.ReadToEnd();
                         responseStream.Close();
                     }
                 }
 
                 Console.WriteLine("Submitted, thanks!");
+                Console.WriteLine(content);
             }
             catch (Exception e)
             {
