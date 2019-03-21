@@ -13,7 +13,6 @@ namespace SteamTokens
     internal static class Program
     {
         private const int APPS_PER_REQUEST = 10_000;
-        private const int APPS_TO_REQUEST = 1_200_000;
 
         private static SteamClient steamClient;
         private static CallbackManager manager;
@@ -226,7 +225,9 @@ namespace SteamTokens
             var grantedTokens = 0;
             var postData = $"steamid={steamUser.SteamID.ConvertToUInt64()}&";
 
-            for (uint i = 1; i <= APPS_TO_REQUEST; i += APPS_PER_REQUEST)
+            var appsToRequest = GetLastKnownAppID();
+
+            for (uint i = 1; i <= appsToRequest; i += APPS_PER_REQUEST)
             {
                 var apps = new List<uint>();
 
@@ -313,6 +314,37 @@ namespace SteamTokens
             {
                 Console.WriteLine("Whoops: {0}", e.Message);
             }
+        }
+
+        private static int GetLastKnownAppID()
+        {
+            try
+            {
+                var rqst = (HttpWebRequest)WebRequest.Create("https://steamdb.info/api/SubmitToken/?getLastAppId");
+                rqst.UserAgent = "SteamTokenDumper";
+                rqst.KeepAlive = false;
+
+                string content;
+
+                using (var webResponse = rqst.GetResponse())
+                using (var responseStream = new StreamReader(webResponse.GetResponseStream()))
+                {
+                    content = responseStream.ReadToEnd();
+                    responseStream.Close();
+                }
+
+                var appsToRequest = int.Parse(content);
+
+                Console.WriteLine($"Last appid to request is {appsToRequest}");
+
+                return appsToRequest;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Whoops: {0}", e.Message);
+            }
+
+            return 1_200_000;
         }
     }
 }
