@@ -222,9 +222,7 @@ namespace SteamTokens
         private static async Task RequestTokens()
         {
             var empty = Enumerable.Empty<uint>().ToList();
-            var grantedTokens = 0;
-            var postData = $"steamid={steamUser.SteamID.ConvertToUInt64()}&";
-
+            var tokensString = new List<string>();
             var appsToRequest = GetLastKnownAppID();
 
             for (uint i = 1; i <= appsToRequest; i += APPS_PER_REQUEST)
@@ -247,18 +245,17 @@ namespace SteamTokens
                 {
                     Console.WriteLine("App: {0} - Token: {1}", token.Key, token.Value);
 
-                    postData += $"apps[]={token.Key}_{token.Value}&";
-                    grantedTokens++;
+                    tokensString.Add($"\"{token.Key}\":\"{token.Value}\"");
                 }
 
                 Console.ResetColor();
             }
 
-            Console.WriteLine($"{grantedTokens} non-zero tokens granted.");
+            Console.WriteLine($"{tokensString.Count} non-zero tokens granted.");
 
-            if (grantedTokens > 0)
+            if (tokensString.Count > 0)
             {
-                SendTokens(postData);
+                SendTokens("{\"steamid\":\"" + steamUser.SteamID.ConvertToUInt64() + "\",\"apps\":{" + string.Join(",", tokensString) + "}}");
             }
 
             isDisconnecting = true;
@@ -286,7 +283,7 @@ namespace SteamTokens
                 var rqst = (HttpWebRequest)WebRequest.Create("https://steamdb.info/api/SubmitToken/");
 
                 rqst.Method = "POST";
-                rqst.ContentType = "application/x-www-form-urlencoded";
+                rqst.ContentType = "application/json";
                 rqst.UserAgent = "SteamTokenDumper";
                 rqst.KeepAlive = false;
 
