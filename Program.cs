@@ -1,14 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using SteamKit2;
 
-namespace SteamTokens
+namespace SteamTokenDumper
 {
     internal static class Program
     {
@@ -20,7 +20,6 @@ namespace SteamTokens
         private static SteamUser steamUser;
         private static SteamApps steamApps;
 
-        private static bool isDisconnecting;
         private static bool isRunning;
         private static bool isDumpingDepotKeys;
 
@@ -28,6 +27,8 @@ namespace SteamTokens
         private static string pass;
         private static string authCode;
         private static string twoFactorAuth;
+
+        private static Payload Payload = new Payload();
 
         public static void Main()
         {
@@ -47,7 +48,7 @@ namespace SteamTokens
             Console.ResetColor();
 
             Console.Write("Should we dump depot keys? This is much slower. Type 'no' to skip: ");
-            isDumpingDepotKeys = !Console.ReadLine().StartsWith("no");
+            isDumpingDepotKeys = Console.ReadLine() != "no";
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
@@ -71,7 +72,6 @@ namespace SteamTokens
             manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
             manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
-            manager.Subscribe<SteamUser.LoggedOffCallback>(OnLoggedOff);
 
             isRunning = true;
 
@@ -153,7 +153,7 @@ namespace SteamTokens
 
         private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
         {
-            if (isDisconnecting)
+            if (Payload.SteamID > 0)
             {
                 isRunning = false;
 
@@ -162,25 +162,9 @@ namespace SteamTokens
                 return;
             }
 
-            Console.WriteLine("Disconnected from Steam, reconnecting in 5 seconds...");
-
-            Thread.Sleep(TimeSpan.FromSeconds(5));
+            Console.WriteLine("Disconnected from Steam, reconnecting...");
 
             steamClient.Connect();
-        }
-
-        private static void OnLoggedOff(SteamUser.LoggedOffCallback callback)
-        {
-            if (isDisconnecting)
-            {
-                isRunning = false;
-
-                Console.WriteLine("Exiting...");
-
-                return;
-            }
-
-            Console.WriteLine("Logged off of Steam: {0}", callback.Result);
         }
 
         private static async void OnLoggedOn(SteamUser.LoggedOnCallback callback)
@@ -215,30 +199,25 @@ namespace SteamTokens
                 return;
             }
 
+            Console.WriteLine();
+
+            Payload.SteamID = callback.ClientSteamID.ConvertToUInt64();
+
             await RequestTokens().ConfigureAwait(false);
         }
 
         private static async Task RequestTokens()
         {
-            var empty = Enumerable.Empty<uint>().ToList();
-            var tokensString = new List<string>();
-            var depotString = new List<string>();
             var alreadyTriedDepots = new HashSet<uint>();
-            var appsToRequest = GetLastKnownAppID();
+            var appsToRequest = await GetLastKnownAppID();
 
-            for (uint i = 1; i <= appsToRequest; i += APPS_PER_REQUEST)
+            for (var i = 0; i <= appsToRequest; i += APPS_PER_REQUEST)
             {
-                var apps = new List<uint>();
                 SteamApps.PICSTokensCallback callback;
-
-                for (var a = i; a < i + APPS_PER_REQUEST; a++)
-                {
-                    apps.Add(a);
-                }
 
                 try
                 {
-                    callback = await steamApps.PICSGetAccessTokens(apps, empty);
+                    callback = await steamApps.PICSGetAccessTokens(Enumerable.Range(i + 1, APPS_PER_REQUEST).Select(appid => (uint)appid), Enumerable.Empty<uint>());
                 }
                 catch (Exception e)
                 {
@@ -246,7 +225,7 @@ namespace SteamTokens
                     continue;
                 }
 
-                Console.WriteLine($"Range {i}-{i+APPS_PER_REQUEST-1} - Tokens granted: {callback.AppTokens.Count} - Tokens denied: {callback.AppTokensDenied.Count}");
+                Console.WriteLine($"Range {i + 1}-{i + APPS_PER_REQUEST} - Tokens granted: {callback.AppTokens.Count} - Tokens denied: {callback.AppTokensDenied.Count}");
 
                 Console.ForegroundColor = ConsoleColor.Blue;
 
@@ -258,7 +237,7 @@ namespace SteamTokens
                     {
                         Console.WriteLine("App: {0} - Token: {1}", token.Key, token.Value);
 
-                        tokensString.Add($"\"{token.Key}\":\"{token.Value}\"");
+                        Payload.Apps.Add(token.Key, token.Value);
                     }
 
                     appInfoRequests.Add(new SteamApps.PICSRequest
@@ -282,7 +261,7 @@ namespace SteamTokens
 
                     if (appInfoRequests.Count > 0)
                     {
-                        Console.WriteLine($"Requesting app info for {appInfoRequests.Count} apps");
+                        Console.WriteLine($"Requesting app info for {appInfoRequests.Count} apps...");
 
                         var appInfo = await steamApps.PICSGetProductInfo(appInfoRequests, Enumerable.Empty<SteamApps.PICSRequest>());
 
@@ -290,8 +269,11 @@ namespace SteamTokens
                         {
                             foreach (var app in result.Apps.Values)
                             {
-                                alreadyTriedDepots.Add(app.ID);
-                                tasks.Add(steamApps.GetDepotDecryptionKey(app.ID, app.ID).ToTask());
+                                if (!alreadyTriedDepots.Contains(app.ID))
+                                {
+                                    alreadyTriedDepots.Add(app.ID);
+                                    tasks.Add(steamApps.GetDepotDecryptionKey(app.ID, app.ID).ToTask());
+                                }
 
                                 if (app.KeyValues["depots"] != null)
                                 {
@@ -299,7 +281,13 @@ namespace SteamTokens
                                     {
                                         var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
 
-                                        if (uint.TryParse(depot.Name, out var depotid) && !alreadyTriedDepots.Contains(depotid) && depotfromapp != 1007 && depotfromapp != 228980)
+                                        // common redistributables and steam sdk
+                                        if (depotfromapp == 1007 || depotfromapp == 228980)
+                                        {
+                                            continue;
+                                        }
+
+                                        if (uint.TryParse(depot.Name, out var depotid) && !alreadyTriedDepots.Contains(depotid))
                                         {
                                             alreadyTriedDepots.Add(depotid);
                                             tasks.Add(steamApps.GetDepotDecryptionKey(depotid, app.ID).ToTask());
@@ -312,7 +300,7 @@ namespace SteamTokens
 
                     if (tasks.Count > 0)
                     {
-                        Console.WriteLine($"Requesting depot keys for {tasks.Count} depots");
+                        Console.WriteLine($"Requesting depot keys for {tasks.Count} depots...");
 
                         await Task.WhenAll(tasks);
 
@@ -324,7 +312,7 @@ namespace SteamTokens
                             {
                                 depotKeysCount++;
 
-                                depotString.Add($"\"{task.Result.DepotID}\":\"{BitConverter.ToString(task.Result.DepotKey).Replace("-", "")}\"");
+                                Payload.Depots.Add(task.Result.DepotID, BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
                             }
                         }
 
@@ -339,20 +327,15 @@ namespace SteamTokens
                 }
             }
 
-            Console.WriteLine($"{tokensString.Count} non-zero tokens granted.");
-            Console.WriteLine($"{depotString.Count} depot keys found.");
+            Console.WriteLine($"{Payload.Apps.Count} non-zero tokens granted.");
+            Console.WriteLine($"{Payload.Depots.Count} depot keys found.");
 
-            if (tokensString.Count > 0)
-            {
-                SendTokens("{\"steamid\":\"" + steamUser.SteamID.ConvertToUInt64() + "\",\"apps\":{" + string.Join(",", tokensString) + "},\"depots\":{" + string.Join(",", depotString) + "}}");
-            }
-
-            isDisconnecting = true;
+            await SendTokens(JsonConvert.SerializeObject(Payload));
 
             steamUser.LogOff();
         }
 
-        private static void SendTokens(string postData)
+        private static async Task SendTokens(string postData)
         {
             Console.WriteLine(" ");
             Console.BackgroundColor = ConsoleColor.DarkYellow;
@@ -360,7 +343,7 @@ namespace SteamTokens
             Console.Write("Would you like to submit these tokens to SteamDB? Type 'yes' to submit: ");
             Console.ResetColor();
 
-            if (!Console.ReadLine().Equals("yes"))
+            if (Console.ReadLine() != "yes")
             {
                 return;
             }
@@ -369,35 +352,13 @@ namespace SteamTokens
 
             try
             {
-                var rqst = (HttpWebRequest)WebRequest.Create("https://steamdb.info/api/SubmitToken/");
-
-                rqst.Method = "POST";
-                rqst.ContentType = "application/json";
-                rqst.UserAgent = "SteamTokenDumper";
-                rqst.KeepAlive = false;
-
-                byte[] byteData = Encoding.UTF8.GetBytes(postData);
-                rqst.ContentLength = byteData.Length;
-
-                using (var postStream = rqst.GetRequestStream())
+                using (var httpClient = new HttpClient())
                 {
-                    postStream.Write(byteData, 0, byteData.Length);
-                    postStream.Close();
+                    var content = new StringContent(postData, Encoding.UTF8, "application/json");
+                    var result = await httpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
+
+                    Console.WriteLine(await result.Content.ReadAsStringAsync());
                 }
-
-                string content;
-
-                using (var webResponse = rqst.GetResponse())
-                {
-                    using (var responseStream = new StreamReader(webResponse.GetResponseStream()))
-                    {
-                        content = responseStream.ReadToEnd();
-                        responseStream.Close();
-                    }
-                }
-
-                Console.WriteLine("Submitted, thanks!");
-                Console.WriteLine(content);
             }
             catch (Exception e)
             {
@@ -405,35 +366,18 @@ namespace SteamTokens
             }
         }
 
-        private static int GetLastKnownAppID()
+        private static async Task<int> GetLastKnownAppID()
         {
-            try
+            using (var httpClient = new HttpClient())
             {
-                var rqst = (HttpWebRequest)WebRequest.Create("https://steamdb.info/api/SubmitToken/?getLastAppId");
-                rqst.UserAgent = "SteamTokenDumper";
-                rqst.KeepAlive = false;
-
-                string content;
-
-                using (var webResponse = rqst.GetResponse())
-                using (var responseStream = new StreamReader(webResponse.GetResponseStream()))
-                {
-                    content = responseStream.ReadToEnd();
-                    responseStream.Close();
-                }
-
+                var result = await httpClient.GetAsync("https://steamdb.info/api/SubmitToken/?getLastAppId");
+                var content = await result.Content.ReadAsStringAsync();
                 var appsToRequest = int.Parse(content);
 
                 Console.WriteLine($"Last appid to request is {appsToRequest}");
 
                 return appsToRequest;
             }
-            catch (Exception e)
-            {
-                Console.WriteLine("Whoops: {0}", e.Message);
-            }
-
-            return 1_200_000;
         }
     }
 }
