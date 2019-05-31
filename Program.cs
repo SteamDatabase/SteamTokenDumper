@@ -22,6 +22,7 @@ namespace SteamTokens
 
         private static bool isDisconnecting;
         private static bool isRunning;
+        private static bool isDumpingDepotKeys;
 
         private static string user;
         private static string pass;
@@ -49,6 +50,9 @@ namespace SteamTokens
             Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
             Console.WriteLine(" ");
             Console.ResetColor();
+
+            Console.Write("Should we dump depot keys? This is much slower. Type 'no' to skip: ");
+            isDumpingDepotKeys = !Console.ReadLine().StartsWith("no");
 
             Console.Write("Enter your Steam username: ");
             user = Console.ReadLine();
@@ -223,6 +227,7 @@ namespace SteamTokens
         {
             var empty = Enumerable.Empty<uint>().ToList();
             var tokensString = new List<string>();
+            var depotString = new List<string>();
             var appsToRequest = GetLastKnownAppID();
 
             for (uint i = 1; i <= appsToRequest; i += APPS_PER_REQUEST)
@@ -235,27 +240,92 @@ namespace SteamTokens
                 }
 
                 var callback = await steamApps.PICSGetAccessTokens(apps, empty);
-                var tokens = callback.AppTokens.Where(app => app.Value > 0).ToList();
 
                 Console.WriteLine($"Range {i}-{i+APPS_PER_REQUEST-1} - Tokens granted: {callback.AppTokens.Count} - Tokens denied: {callback.AppTokensDenied.Count}");
 
                 Console.ForegroundColor = ConsoleColor.Blue;
 
-                foreach (var token in tokens)
-                {
-                    Console.WriteLine("App: {0} - Token: {1}", token.Key, token.Value);
+                var appInfoRequests = new List<SteamApps.PICSRequest>();
 
-                    tokensString.Add($"\"{token.Key}\":\"{token.Value}\"");
+                foreach (var token in callback.AppTokens)
+                {
+                    if (token.Value > 0)
+                    {
+                        Console.WriteLine("App: {0} - Token: {1}", token.Key, token.Value);
+
+                        tokensString.Add($"\"{token.Key}\":\"{token.Value}\"");
+                    }
+
+                    appInfoRequests.Add(new SteamApps.PICSRequest
+                    {
+                        ID = token.Key,
+                        AccessToken = token.Value,
+                        Public = false,
+                    });
                 }
 
                 Console.ResetColor();
+
+                try
+                {
+                    var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
+
+                    if (appInfoRequests.Count > 0)
+                    {
+                        Console.WriteLine($"Requesting app info for {appInfoRequests.Count} apps");
+
+                        var appInfo = await steamApps.PICSGetProductInfo(appInfoRequests, Enumerable.Empty<SteamApps.PICSRequest>());
+
+                        foreach (var result in appInfo.Results)
+                        {
+                            foreach (var app in result.Apps.Values)
+                            {
+                                if (app.KeyValues["depots"] != null)
+                                {
+                                    foreach (var depot in app.KeyValues["depots"].Children)
+                                    {
+                                        if (uint.TryParse(depot.Name, out var depotid) && depot["depotfromapp"].AsUnsignedInteger() != 1007)
+                                        {
+                                            tasks.Add(steamApps.GetDepotDecryptionKey(depotid, app.ID).ToTask());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (tasks.Count > 0)
+                    {
+                        Console.WriteLine($"Requesting depot keys for {tasks.Count} depots");
+
+                        await Task.WhenAll(tasks);
+
+                        Console.ForegroundColor = ConsoleColor.Green;
+
+                        foreach (var task in tasks)
+                        {
+                            if (task.Result.Result == EResult.OK)
+                            {
+                                Console.WriteLine("Depot: {0} - Key: {1}", task.Result.DepotID, task.Result.Result);
+
+                                depotString.Add($"\"{task.Result.DepotID}\":\"{BitConverter.ToString(task.Result.DepotKey).Replace("-", "")}\"");
+                            }
+                        }
+
+                        Console.ResetColor();
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e);
+                }
             }
 
             Console.WriteLine($"{tokensString.Count} non-zero tokens granted.");
 
             if (tokensString.Count > 0)
             {
-                SendTokens("{\"steamid\":\"" + steamUser.SteamID.ConvertToUInt64() + "\",\"apps\":{" + string.Join(",", tokensString) + "}}");
+                SendTokens("{\"steamid\":\"" + steamUser.SteamID.ConvertToUInt64() + "\",\"apps\":{" + string.Join(",", tokensString) + "},\"depots\":{" + string.Join(",", depotString) + "}}");
             }
 
             isDisconnecting = true;
