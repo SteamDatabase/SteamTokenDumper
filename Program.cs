@@ -284,7 +284,9 @@ namespace SteamTokens
                                 {
                                     foreach (var depot in app.KeyValues["depots"].Children)
                                     {
-                                        if (uint.TryParse(depot.Name, out var depotid) && depot["depotfromapp"].AsUnsignedInteger() != 1007)
+                                        var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
+
+                                        if (uint.TryParse(depot.Name, out var depotid) && depotfromapp != 1007 && depotfromapp != 228980)
                                         {
                                             tasks.Add(steamApps.GetDepotDecryptionKey(depotid, app.ID).ToTask());
                                         }
