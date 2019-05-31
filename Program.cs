@@ -271,6 +271,11 @@ namespace SteamTokens
 
                 Console.ResetColor();
 
+                if (!isDumpingDepotKeys)
+                {
+                    continue;
+                }
+
                 try
                 {
                     var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
@@ -311,18 +316,20 @@ namespace SteamTokens
 
                         await Task.WhenAll(tasks);
 
-                        Console.ForegroundColor = ConsoleColor.Green;
+                        var depotKeysCount = 0;
 
                         foreach (var task in tasks)
                         {
                             if (task.Result.Result == EResult.OK)
                             {
-                                Console.WriteLine("Depot: {0} - Key: {1}", task.Result.DepotID, task.Result.Result);
+                                depotKeysCount++;
 
                                 depotString.Add($"\"{task.Result.DepotID}\":\"{BitConverter.ToString(task.Result.DepotKey).Replace("-", "")}\"");
                             }
                         }
 
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"Found {depotKeysCount} depot keys");
                         Console.ResetColor();
                     }
                 }
