@@ -40,14 +40,9 @@ namespace SteamTokens
             Console.WriteLine("and then submit all received tokens to SteamDB.");
             Console.WriteLine(" ");
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("All tokens are GLOBAL, and are not unique to your account,");
+            Console.WriteLine("All tokens and keys are GLOBAL, and are not unique to your account,");
             Console.WriteLine("SteamDB bot simply can't get them because it doesn't own these games");
             Console.WriteLine("Using this software will help SteamDB, thanks!");
-            Console.WriteLine(" ");
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine("A sentry (SteamGuard) file will be saved locally, but your");
-            Console.WriteLine("username and password will not be stored. This software uses");
-            Console.WriteLine("SteamKit2 to perform actions on the Steam network.");
             Console.WriteLine(" ");
             Console.ResetColor();
 
@@ -338,6 +333,7 @@ namespace SteamTokens
             }
 
             Console.WriteLine($"{tokensString.Count} non-zero tokens granted.");
+            Console.WriteLine($"{depotString.Count} depot keys found.");
 
             if (tokensString.Count > 0)
             {
