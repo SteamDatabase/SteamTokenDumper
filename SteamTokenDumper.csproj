@@ -1,36 +1,53 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
-    <Configuration>Release</Configuration>
-    <Platform>x64</Platform>
-    <PlatformTarget>x64</PlatformTarget>
-    <OutputPath>bin</OutputPath>
-    <Optimize>true</Optimize>
-    <GenerateSerializationAssemblies>Off</GenerateSerializationAssemblies>
-    <ProjectGuid>{3C28B258-3264-45BC-A42D-07D5F540F093}</ProjectGuid>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{8D972FA0-448F-4112-9795-7B46775A5431}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>SteamTokens</RootNamespace>
+    <RootNamespace>SteamTokenDumper</RootNamespace>
     <AssemblyName>SteamTokenDumper</AssemblyName>
-    <UseMSBuildEngine>False</UseMSBuildEngine>
-    <StartupObject>SteamTokens.Program</StartupObject>
-    <ApplicationIcon>1429117524_175370.ico</ApplicationIcon>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <Deterministic>true</Deterministic>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>3</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>1429117524_175370.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="SteamKit2, Version=1.8.3.0, Culture=neutral, PublicKeyToken=ed3ce47ed5aad940, processorArchitecture=MSIL">
-      <HintPath>packages\SteamKit2.1.8.3\lib\net45\SteamKit2.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
-    <Reference Include="protobuf-net">
-      <HintPath>packages\protobuf-net.2.0.0.668\lib\net40\protobuf-net.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <ItemGroup>
-    <None Include="packages.config" />
+    <PackageReference Include="SteamKit2">
+      <Version>1.8.3</Version>
+    </PackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="1429117524_175370.ico" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

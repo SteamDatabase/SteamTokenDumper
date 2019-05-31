@@ -1,22 +1,25 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.136
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28917.182
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SteamTokenDumper", "SteamTokenDumper.csproj", "{3C28B258-3264-45BC-A42D-07D5F540F093}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SteamTokenDumper", "SteamTokenDumper.csproj", "{8D972FA0-448F-4112-9795-7B46775A5431}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
-		Release|x64 = Release|x64
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3C28B258-3264-45BC-A42D-07D5F540F093}.Release|x64.ActiveCfg = Debug|x86
-		{3C28B258-3264-45BC-A42D-07D5F540F093}.Release|x64.Build.0 = Debug|x86
+		{8D972FA0-448F-4112-9795-7B46775A5431}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D972FA0-448F-4112-9795-7B46775A5431}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D972FA0-448F-4112-9795-7B46775A5431}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D972FA0-448F-4112-9795-7B46775A5431}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {967B1C45-272A-4C15-BD17-29635D34D821}
+		SolutionGuid = {8FD3E04D-1576-4D28-A74A-DCB6AD885200}
 	EndGlobalSection
 EndGlobal
