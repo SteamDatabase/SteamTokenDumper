@@ -228,18 +228,28 @@ namespace SteamTokens
             var empty = Enumerable.Empty<uint>().ToList();
             var tokensString = new List<string>();
             var depotString = new List<string>();
+            var alreadyTriedDepots = new HashSet<uint>();
             var appsToRequest = GetLastKnownAppID();
 
             for (uint i = 1; i <= appsToRequest; i += APPS_PER_REQUEST)
             {
                 var apps = new List<uint>();
+                SteamApps.PICSTokensCallback callback;
 
                 for (var a = i; a < i + APPS_PER_REQUEST; a++)
                 {
                     apps.Add(a);
                 }
 
-                var callback = await steamApps.PICSGetAccessTokens(apps, empty);
+                try
+                {
+                    callback = await steamApps.PICSGetAccessTokens(apps, empty);
+                }
+                catch (Exception e)
+                {
+                    Console.Error.WriteLine(e);
+                    continue;
+                }
 
                 Console.WriteLine($"Range {i}-{i+APPS_PER_REQUEST-1} - Tokens granted: {callback.AppTokens.Count} - Tokens denied: {callback.AppTokensDenied.Count}");
 
@@ -280,14 +290,18 @@ namespace SteamTokens
                         {
                             foreach (var app in result.Apps.Values)
                             {
+                                alreadyTriedDepots.Add(app.ID);
+                                tasks.Add(steamApps.GetDepotDecryptionKey(app.ID, app.ID).ToTask());
+
                                 if (app.KeyValues["depots"] != null)
                                 {
                                     foreach (var depot in app.KeyValues["depots"].Children)
                                     {
                                         var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
 
-                                        if (uint.TryParse(depot.Name, out var depotid) && depotfromapp != 1007 && depotfromapp != 228980)
+                                        if (uint.TryParse(depot.Name, out var depotid) && !alreadyTriedDepots.Contains(depotid) && depotfromapp != 1007 && depotfromapp != 228980)
                                         {
+                                            alreadyTriedDepots.Add(depotid);
                                             tasks.Add(steamApps.GetDepotDecryptionKey(depotid, app.ID).ToTask());
                                         }
                                     }
