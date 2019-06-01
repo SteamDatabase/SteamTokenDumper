@@ -351,26 +351,22 @@ namespace SteamTokenDumper
 
                     await Task.WhenAll(tasks);
 
-                    var depotKeysDenied = 0;
-                    var depotKeysGranted = 0;
+                    var depotKeys = new Dictionary<EResult, int>();
 
                     foreach (var task in tasks)
                     {
+                        depotKeys.TryGetValue(task.Result.Result, out var currentCount);
+                        depotKeys[task.Result.Result] = currentCount + 1;
+
                         if (task.Result.Result == EResult.OK)
                         {
-                            depotKeysGranted++;
-
                             Payload.Depots.Add(task.Result.DepotID, BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
-                        }
-                        else
-                        {
-                            depotKeysDenied++;
                         }
                     }
 
                     Console.WriteLine();
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine($"Depot keys granted: {depotKeysGranted} - Denied: {depotKeysDenied}");
+                    Console.WriteLine("Depot keys: {0}", string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value)));
                     Console.ResetColor();
                 }
             }
