@@ -277,7 +277,6 @@ namespace SteamTokenDumper
 
                 if (appInfoRequests.Count > 0)
                 {
-                    Console.WriteLine($"{appInfoRequests.Count} apps to request");
                     Console.WriteLine();
 
                     const int APPS_PER_REQUEST = 200;
@@ -392,6 +391,8 @@ namespace SteamTokenDumper
             {
                 using (var httpClient = new HttpClient())
                 {
+                    httpClient.Timeout = TimeSpan.FromMinutes(10);
+                    httpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Payload.Version}");
                     var content = new StringContent(postData, Encoding.UTF8, "application/json");
                     var result = await httpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
 
