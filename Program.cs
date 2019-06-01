@@ -364,6 +364,7 @@ namespace SteamTokenDumper
                     }
 
                     Console.WriteLine();
+                    Console.WriteLine();
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("Depot keys: {0}", string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value)));
                     Console.ResetColor();
@@ -371,7 +372,7 @@ namespace SteamTokenDumper
             }
             catch (Exception e)
             {
-                Console.WriteLine();
+                Console.Error.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Error.WriteLine(e);
                 Console.ResetColor();
@@ -397,12 +398,21 @@ namespace SteamTokenDumper
                     var result = await httpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
 
                     Console.WriteLine(await result.Content.ReadAsStringAsync());
+
+                    result.EnsureSuccessStatusCode();
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine("Whoops: {0}", e.Message);
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine("Whoops: {0}", e.Message);
+                Console.Error.WriteLine("Submission failed, written data to dumper.json file");
+                Console.ResetColor();
+
+                System.IO.File.WriteAllText("dumper.json", postData);
             }
+
+            Console.WriteLine();
         }
     }
 }
