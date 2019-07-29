@@ -274,6 +274,7 @@ namespace SteamTokenDumper
             try
             {
                 var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
+                var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
 
                 if (appInfoRequests.Count > 0)
                 {
@@ -285,7 +286,8 @@ namespace SteamTokenDumper
 
                     foreach (var chunk in appInfoRequests.Split(APPS_PER_REQUEST))
                     {
-                        Console.Write($"\rApp info request {++loops} of {total} - {tasks.Count} depot keys requested");
+                        Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
+                        Console.Write($"\rApp info request {++loops} of {total} - {tasks.Count} depot keys requested...");
 
                         var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
                         appJob.Timeout = timeout;
@@ -303,6 +305,7 @@ namespace SteamTokenDumper
                                     appKeyJob.Timeout = timeout;
 
                                     tasks.Add(appKeyJob.ToTask());
+                                    currentTasks.Add(appKeyJob.ToTask());
                                 }
 
                                 if (app.KeyValues["depots"] != null)
@@ -325,22 +328,17 @@ namespace SteamTokenDumper
                                             job.Timeout = timeout;
 
                                             tasks.Add(job.ToTask());
+                                            currentTasks.Add(job.ToTask());
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                }
 
-                foreach (var depot in depots)
-                {
-                    if (!depot.Value)
-                    {
-                        var appKeyJob = steamApps.GetDepotDecryptionKey(depot.Key, depot.Key - (depot.Key % 10));
-                        appKeyJob.Timeout = timeout;
-
-                        tasks.Add(appKeyJob.ToTask());
+                        Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
+                        Console.Write($"\rApp info request {loops} of {total} - Waiting for {currentTasks.Count} tasks to finish...");
+                        await Task.WhenAll(currentTasks);
+                        currentTasks.Clear();
                     }
                 }
 
