@@ -46,7 +46,7 @@ namespace SteamTokenDumper
             Console.ResetColor();
 
             Console.Write("Enter your Steam username: ");
-            user = Console.ReadLine();
+            user = ReadUserInput(true);
 
             if (string.IsNullOrEmpty(user))
             {
@@ -55,7 +55,7 @@ namespace SteamTokenDumper
             else
             {
                 Console.Write("Enter your Steam password: ");
-                pass = ReadPassword();
+                pass = ReadUserInput();
             }
 
             steamClient = new SteamClient();
@@ -84,17 +84,24 @@ namespace SteamTokenDumper
             Console.ReadKey();
         }
 
-        // some shitty function from google
-        private static string ReadPassword()
+        private static string ReadUserInput(bool showFirstChar = false)
         {
-            var password = "";
+            var password = string.Empty;
             var info = Console.ReadKey(true);
 
-            while (info.Key != ConsoleKey.Enter)
+            while (info.Key != ConsoleKey.Enter && info.Key != ConsoleKey.Tab)
             {
-                if (info.Key != ConsoleKey.Backspace)
+                if (info.Key != ConsoleKey.Backspace && info.KeyChar != 0)
                 {
-                    Console.Write("*");
+                    if (showFirstChar && password.Length == 0)
+                    {
+                        Console.Write(info.KeyChar.ToString());
+                    }
+                    else
+                    {
+                        Console.Write("*");
+                    }
+
                     password += info.KeyChar;
                 }
                 else if (info.Key == ConsoleKey.Backspace)
@@ -344,6 +351,7 @@ namespace SteamTokenDumper
 
                 if (tasks.Count > 0)
                 {
+                    Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
                     Console.Write($"\rWaiting for {tasks.Count} tasks to finish...                       ");
 
                     await Task.WhenAll(tasks);
