@@ -54,8 +54,12 @@ namespace SteamTokenDumper
             }
             else
             {
-                Console.Write("Enter your Steam password: ");
-                pass = ReadUserInput();
+                do
+                {
+                    Console.Write("Enter your Steam password: ");
+                    pass = ReadUserInput();
+                }
+                while (pass.Length < 6);
             }
 
             steamClient = new SteamClient();
@@ -104,16 +108,13 @@ namespace SteamTokenDumper
 
                     password += info.KeyChar;
                 }
-                else if (info.Key == ConsoleKey.Backspace)
+                else if (info.Key == ConsoleKey.Backspace && password.Length > 0)
                 {
-                    if (!string.IsNullOrEmpty(password))
-                    {
-                        password = password.Substring(0, password.Length - 1);
-                        var pos = Console.CursorLeft;
-                        Console.SetCursorPosition(pos - 1, Console.CursorTop);
-                        Console.Write(" ");
-                        Console.SetCursorPosition(pos - 1, Console.CursorTop);
-                    }
+                    password = password.Substring(0, password.Length - 1);
+                    var pos = Console.CursorLeft;
+                    Console.SetCursorPosition(pos - 1, Console.CursorTop);
+                    Console.Write(" ");
+                    Console.SetCursorPosition(pos - 1, Console.CursorTop);
                 }
 
                 info = Console.ReadKey(true);
