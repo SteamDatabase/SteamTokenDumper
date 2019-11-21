@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -208,7 +209,7 @@ namespace SteamTokenDumper
 
             if (callback.ClientSteamID.AccountType == EAccountType.AnonUser)
             {
-                await DoTheThing(new List<uint> { 17906 });
+                await TryDoTheThing(new HashSet<uint> { 17906 });
             }
             else
             {
@@ -220,19 +221,40 @@ namespace SteamTokenDumper
         {
             LicenseListCallback.Dispose();
 
-            var packages = licenseList.LicenseList.Select(x => x.PackageID).ToList();
+            var packages = licenseList.LicenseList.Select(x => x.PackageID);
 
-            await DoTheThing(packages);
+            await TryDoTheThing(new HashSet<uint>(packages));
         }
 
-        private static async Task DoTheThing(List<uint> packages)
+        private static async Task TryDoTheThing(HashSet<uint> packages)
+        {
+            try
+            {
+                await DoTheThing(packages);
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Error.WriteLine(e);
+                Console.ResetColor();
+            }
+
+            await SendTokens(JsonConvert.SerializeObject(Payload));
+
+            steamUser.LogOff();
+        }
+
+        private static async Task DoTheThing(HashSet<uint> packages)
         {
             Console.WriteLine();
             Console.WriteLine($"You have {packages.Count} licenses");
 
             // TODO: packages.Split?
             var timeout = TimeSpan.FromMinutes(1);
-            var info = await steamApps.PICSGetProductInfo(Enumerable.Empty<uint>(), packages);
+            var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<uint>(), packages);
+            infoTask.Timeout = timeout;
+            var info = await infoTask;
             var apps = new HashSet<uint>();
             var depots = new Dictionary<uint, bool>();
 
@@ -255,7 +277,9 @@ namespace SteamTokenDumper
             Console.WriteLine($"You own {apps.Count} apps");
 
             // TODO: apps.Split?
-            var tokens = await steamApps.PICSGetAccessTokens(apps, Enumerable.Empty<uint>());
+            var tokensTask = steamApps.PICSGetAccessTokens(apps, Enumerable.Empty<uint>());
+            tokensTask.Timeout = timeout;
+            var tokens = await tokensTask;
             var nonZero = tokens.AppTokens.Count(x => x.Value > 0);
             var appInfoRequests = new List<SteamApps.PICSRequest>();
 
@@ -279,115 +303,102 @@ namespace SteamTokenDumper
                 });
             }
 
-            try
+
+            var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
+            var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
+
+            if (appInfoRequests.Count > 0)
             {
-                var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
-                var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
+                Console.WriteLine();
 
-                if (appInfoRequests.Count > 0)
+                const int APPS_PER_REQUEST = 200;
+                var loops = 0;
+                var total = (-1L + appInfoRequests.Count + APPS_PER_REQUEST) / APPS_PER_REQUEST;
+
+                foreach (var chunk in appInfoRequests.Split(APPS_PER_REQUEST))
                 {
-                    Console.WriteLine();
+                    Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
+                    Console.Write($"\rApp info request {++loops} of {total} - {tasks.Count} depot keys requested...");
 
-                    const int APPS_PER_REQUEST = 200;
-                    var loops = 0;
-                    var total = (-1L + appInfoRequests.Count + APPS_PER_REQUEST) / APPS_PER_REQUEST;
+                    var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
+                    appJob.Timeout = timeout;
+                    var appInfo = await appJob;
 
-                    foreach (var chunk in appInfoRequests.Split(APPS_PER_REQUEST))
+                    foreach (var result in appInfo.Results)
                     {
-                        Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
-                        Console.Write($"\rApp info request {++loops} of {total} - {tasks.Count} depot keys requested...");
-
-                        var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
-                        appJob.Timeout = timeout;
-                        var appInfo = await appJob;
-
-                        foreach (var result in appInfo.Results)
+                        foreach (var app in result.Apps.Values)
                         {
-                            foreach (var app in result.Apps.Values)
+                            if (!depots.TryGetValue(app.ID, out var depotTried) || !depotTried)
                             {
-                                if (!depots.TryGetValue(app.ID, out var depotTried) || !depotTried)
+                                depots[app.ID] = true;
+
+                                var appKeyJob = steamApps.GetDepotDecryptionKey(app.ID, app.ID);
+                                appKeyJob.Timeout = timeout;
+
+                                tasks.Add(appKeyJob.ToTask());
+                                currentTasks.Add(appKeyJob.ToTask());
+                            }
+
+                            if (app.KeyValues["depots"] != null)
+                            {
+                                foreach (var depot in app.KeyValues["depots"].Children)
                                 {
-                                    depots[app.ID] = true;
+                                    var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
 
-                                    var appKeyJob = steamApps.GetDepotDecryptionKey(app.ID, app.ID);
-                                    appKeyJob.Timeout = timeout;
-
-                                    tasks.Add(appKeyJob.ToTask());
-                                    currentTasks.Add(appKeyJob.ToTask());
-                                }
-
-                                if (app.KeyValues["depots"] != null)
-                                {
-                                    foreach (var depot in app.KeyValues["depots"].Children)
+                                    // common redistributables and steam sdk
+                                    if (depotfromapp == 1007 || depotfromapp == 228980)
                                     {
-                                        var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
+                                        continue;
+                                    }
 
-                                        // common redistributables and steam sdk
-                                        if (depotfromapp == 1007 || depotfromapp == 228980)
-                                        {
-                                            continue;
-                                        }
+                                    if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && !depotTried)
+                                    {
+                                        depots[depotid] = true;
 
-                                        if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && !depotTried)
-                                        {
-                                            depots[depotid] = true;
+                                        var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
+                                        job.Timeout = timeout;
 
-                                            var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
-                                            job.Timeout = timeout;
-
-                                            tasks.Add(job.ToTask());
-                                            currentTasks.Add(job.ToTask());
-                                        }
+                                        tasks.Add(job.ToTask());
+                                        currentTasks.Add(job.ToTask());
                                     }
                                 }
                             }
                         }
-
-                        Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
-                        Console.Write($"\rApp info request {loops} of {total} - Waiting for {currentTasks.Count} tasks to finish...");
-                        await Task.WhenAll(currentTasks);
-                        currentTasks.Clear();
                     }
-                }
 
-                if (tasks.Count > 0)
-                {
                     Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
-                    Console.Write($"\rWaiting for {tasks.Count} tasks to finish...                       ");
-
-                    await Task.WhenAll(tasks);
-
-                    var depotKeys = new Dictionary<EResult, int>();
-
-                    foreach (var task in tasks)
-                    {
-                        depotKeys.TryGetValue(task.Result.Result, out var currentCount);
-                        depotKeys[task.Result.Result] = currentCount + 1;
-
-                        if (task.Result.Result == EResult.OK)
-                        {
-                            Payload.Depots.Add(task.Result.DepotID, BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
-                        }
-                    }
-
-                    Console.WriteLine();
-                    Console.WriteLine();
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("Depot keys: {0}", string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value)));
-                    Console.ResetColor();
+                    Console.Write($"\rApp info request {loops} of {total} - Waiting for {currentTasks.Count} tasks to finish...");
+                    await Task.WhenAll(currentTasks);
+                    currentTasks.Clear();
                 }
             }
-            catch (Exception e)
+
+            if (tasks.Count > 0)
             {
-                Console.Error.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine(e);
+                Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
+                Console.Write($"\rWaiting for {tasks.Count} tasks to finish...                       ");
+
+                await Task.WhenAll(tasks);
+
+                var depotKeys = new Dictionary<EResult, int>();
+
+                foreach (var task in tasks)
+                {
+                    depotKeys.TryGetValue(task.Result.Result, out var currentCount);
+                    depotKeys[task.Result.Result] = currentCount + 1;
+
+                    if (task.Result.Result == EResult.OK)
+                    {
+                        Payload.Depots.Add(task.Result.DepotID, BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
+                    }
+                }
+
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Depot keys: {0}", string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value)));
                 Console.ResetColor();
             }
-
-            await SendTokens(JsonConvert.SerializeObject(Payload));
-
-            steamUser.LogOff();
         }
 
         private static async Task SendTokens(string postData)
@@ -416,7 +427,7 @@ namespace SteamTokenDumper
                 Console.Error.WriteLine("Submission failed, written data to dumper.json file");
                 Console.ResetColor();
 
-                System.IO.File.WriteAllText("dumper.json", postData);
+                File.WriteAllText("dumper.json", postData);
             }
 
             Console.WriteLine();
