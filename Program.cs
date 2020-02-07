@@ -5,8 +5,8 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using SteamKit2;
 
 namespace SteamTokenDumper
@@ -231,7 +231,10 @@ namespace SteamTokenDumper
                 Console.ResetColor();
             }
 
-            await SendTokens(JsonConvert.SerializeObject(Payload));
+            var options = new JsonSerializerOptions();
+            options.Converters.Add(new JsonNonStringKeyDictionaryConverterFactory());
+
+            await SendTokens(JsonSerializer.Serialize(Payload, options));
 
             steamUser.LogOff();
         }

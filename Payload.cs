@@ -1,21 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using Newtonsoft.Json;
+using System.Text.Json.Serialization;
 
 namespace SteamTokenDumper
 {
     internal sealed class Payload
     {
-        [JsonProperty("v")]
-        public const uint Version = 10;
+        [JsonPropertyName("v")]
+        public uint Version { get; } = 10;
 
-        [JsonProperty("steamid")]
-        public ulong SteamID;
+        [JsonPropertyName("steamid")]
+        public ulong SteamID { get; set; }
 
-        [JsonProperty("apps")]
-        public Dictionary<uint, string> Apps = new Dictionary<uint, string>();
+        [JsonPropertyName("apps")]
+        public Dictionary<uint, string> Apps { get; } = new Dictionary<uint, string>();
 
-        [JsonProperty("depots")]
-        public Dictionary<uint, string> Depots = new Dictionary<uint, string>();
+        [JsonPropertyName("depots")]
+        public Dictionary<uint, string> Depots { get; } = new Dictionary<uint, string>();
     }
 }
