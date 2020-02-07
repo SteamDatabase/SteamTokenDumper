@@ -128,15 +128,6 @@ namespace SteamTokenDumper
 
         private static void OnConnected(SteamClient.ConnectedCallback callback)
         {
-            if (callback.Result != EResult.OK)
-            {
-                Console.WriteLine("Unable to connect to Steam: {0}", callback.Result);
-
-                isRunning = false;
-
-                return;
-            }
-
             Console.WriteLine("Connected to Steam! Logging in...");
 
             if (string.IsNullOrEmpty(user))
