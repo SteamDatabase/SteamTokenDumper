@@ -294,7 +294,7 @@ namespace SteamTokenDumper
 
             var timeout = TimeSpan.FromMinutes(1);
             var apps = new HashSet<uint>();
-            var depots = new Dictionary<uint, bool>();
+            var depots = new Dictionary<uint, uint>();
 
             Console.WriteLine();
 
@@ -315,7 +315,7 @@ namespace SteamTokenDumper
 
                         foreach (var depotid in package.KeyValues["depotids"].Children)
                         {
-                            depots[depotid.AsUnsignedInteger()] = false;
+                            depots[depotid.AsUnsignedInteger()] = 0;
                         }
                     }
                 }
@@ -384,9 +384,9 @@ namespace SteamTokenDumper
                     {
                         foreach (var app in result.Apps.Values)
                         {
-                            if (!depots.TryGetValue(app.ID, out var depotTried) || !depotTried)
+                            if (!depots.TryGetValue(app.ID, out var depotTried) || depotTried != app.ID)
                             {
-                                depots[app.ID] = true;
+                                depots[app.ID] = app.ID;
 
                                 var appKeyJob = steamApps.GetDepotDecryptionKey(app.ID, app.ID);
                                 appKeyJob.Timeout = timeout;
@@ -410,9 +410,9 @@ namespace SteamTokenDumper
                                     continue;
                                 }
 
-                                if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && !depotTried)
+                                if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && depotTried != app.ID)
                                 {
-                                    depots[depotid] = true;
+                                    depots[depotid] = app.ID;
 
                                     var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
                                     job.Timeout = timeout;
