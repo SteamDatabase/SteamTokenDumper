@@ -37,15 +37,17 @@ namespace SteamTokenDumper
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
             Console.ResetColor();
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("This program will login into your Steam account using SteamKit,");
-            Console.WriteLine("request all available apps on Steam,");
-            Console.WriteLine("and then submit all received tokens to SteamDB.");
             Console.WriteLine(" ");
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("All tokens and keys are GLOBAL, and are not unique to your account,");
-            Console.WriteLine("SteamDB bot simply can't get them because it doesn't own these games");
-            Console.WriteLine("Using this software will help SteamDB, thanks!");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("  This program will login into your Steam account to get tokens");
+            Console.WriteLine("  all depot keys you have access to, and then submit to SteamDB.");
+            Console.WriteLine(" ");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("  All tokens and keys are GLOBAL, and are not unique to your account,");
+            Console.WriteLine("  SteamDB bot simply can't get them because it doesn't own these games.");
+            Console.WriteLine(" ");
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("  Doing this allows SteamDB to track hidden apps and file lists.");
             Console.WriteLine(" ");
             Console.ResetColor();
 
