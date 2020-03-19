@@ -284,7 +284,7 @@ namespace SteamTokenDumper
 
         private static async Task DoTheThing(HashSet<uint> packages)
         {
-            void ConsoleRewriteLine(string text)
+            static void ConsoleRewriteLine(string text)
             {
                 Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r{text}");
             }
@@ -361,7 +361,7 @@ namespace SteamTokenDumper
 
             Console.WriteLine();
 
-            var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
+            var depotKeys = new Dictionary<EResult, int>();
 
             if (appInfoRequests.Count > 0)
             {
@@ -372,7 +372,7 @@ namespace SteamTokenDumper
 
                 foreach (var chunk in appInfoRequests.Split(ItemsPerRequest))
                 {
-                    ConsoleRewriteLine($"App info request {++loops} of {total} - {tasks.Count} depot keys requested...");
+                    ConsoleRewriteLine($"App info request {++loops} of {total} - {Payload.Depots.Count} depot keys - Waiting for appinfo...");
 
                     var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
                     appJob.Timeout = timeout;
@@ -380,21 +380,23 @@ namespace SteamTokenDumper
 
                     var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
 
+                    foreach (var app in chunk)
+                    {
+                        if (!depots.TryGetValue(app.ID, out var depotTried) || depotTried != app.ID)
+                        {
+                            depots[app.ID] = app.ID;
+
+                            var appKeyJob = steamApps.GetDepotDecryptionKey(app.ID, app.ID);
+                            appKeyJob.Timeout = timeout;
+
+                            currentTasks.Add(appKeyJob.ToTask());
+                        }
+                    }
+
                     foreach (var result in appInfo.Results)
                     {
                         foreach (var app in result.Apps.Values)
                         {
-                            if (!depots.TryGetValue(app.ID, out var depotTried) || depotTried != app.ID)
-                            {
-                                depots[app.ID] = app.ID;
-
-                                var appKeyJob = steamApps.GetDepotDecryptionKey(app.ID, app.ID);
-                                appKeyJob.Timeout = timeout;
-
-                                tasks.Add(appKeyJob.ToTask());
-                                currentTasks.Add(appKeyJob.ToTask());
-                            }
-
                             if (app.KeyValues["depots"] == null)
                             {
                                 continue;
@@ -410,57 +412,44 @@ namespace SteamTokenDumper
                                     continue;
                                 }
 
-                                if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && depotTried != app.ID)
+                                if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out var depotTried) && depotTried != app.ID)
                                 {
                                     depots[depotid] = app.ID;
 
                                     var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
                                     job.Timeout = timeout;
 
-                                    tasks.Add(job.ToTask());
                                     currentTasks.Add(job.ToTask());
                                 }
                             }
                         }
                     }
 
-                    ConsoleRewriteLine($"App info request {loops} of {total} - Waiting for {currentTasks.Count} tasks to finish...");
+                    ConsoleRewriteLine($"App info request {loops} of {total} - {Payload.Depots.Count} depot keys - Waiting for {currentTasks.Count} tasks...");
 
                     await Task.WhenAll(currentTasks);
-                    currentTasks.Clear();
+
+                    foreach (var task in currentTasks)
+                    {
+                        depotKeys.TryGetValue(task.Result.Result, out var currentCount);
+                        depotKeys[task.Result.Result] = currentCount + 1;
+
+                        if (task.Result.Result == EResult.OK)
+                        {
+                            Payload.Depots[task.Result.DepotID.ToString()] = BitConverter.ToString(task.Result.DepotKey).Replace("-", "");
+                        }
+                    }
                 }
 
                 appInfoRequests.Clear();
             }
 
-            if (tasks.Count > 0)
-            {
-                ConsoleRewriteLine($"Waiting for {tasks.Count} tasks to finish...");
-
-                await Task.WhenAll(tasks);
-
-                var depotKeys = new Dictionary<EResult, int>();
-
-                foreach (var task in tasks)
-                {
-                    depotKeys.TryGetValue(task.Result.Result, out var currentCount);
-                    depotKeys[task.Result.Result] = currentCount + 1;
-
-                    if (task.Result.Result == EResult.OK)
-                    {
-                        Payload.Depots.Add(task.Result.DepotID.ToString(), BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
-                    }
-                }
-
-                tasks.Clear();
-
-                Console.WriteLine();
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"App tokens: {Payload.Apps.Count}");
-                Console.WriteLine("Depot keys: {0}", string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value)));
-                Console.ResetColor();
-            }
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"App tokens: {Payload.Apps.Count}");
+            Console.WriteLine($"Depot keys: {Payload.Depots.Count} ({string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value))})");
+            Console.ResetColor();
         }
 
         private static async Task SendTokens(string postData)

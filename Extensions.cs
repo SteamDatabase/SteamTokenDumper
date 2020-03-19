@@ -5,7 +5,7 @@ namespace SteamTokenDumper
     internal static class Extensions
     {
         // https://codereview.stackexchange.com/a/90531
-        public static IEnumerable<IEnumerable<T>> Split<T>(this IEnumerable<T> fullBatch, int chunkSize)
+        public static IEnumerable<List<T>> Split<T>(this IEnumerable<T> fullBatch, int chunkSize)
         {
             var cellCounter = 0;
             var chunk = new List<T>(chunkSize);
