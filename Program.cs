@@ -14,7 +14,8 @@ namespace SteamTokenDumper
 {
     internal static class Program
     {
-        private const string SENTRYHASHFILE = "SteamTokenDumper.sentryhash.bin";
+        private const string SentryHashFile = "SteamTokenDumper.sentryhash.bin";
+        private const int ItemsPerRequest = 200;
 
         private static SteamClient steamClient;
         private static CallbackManager manager;
@@ -149,7 +150,7 @@ namespace SteamTokenDumper
                     Password = pass,
                     AuthCode = authCode,
                     TwoFactorCode = twoFactorAuth,
-                    SentryFileHash = File.Exists(SENTRYHASHFILE) ? File.ReadAllBytes(SENTRYHASHFILE) : null,
+                    SentryFileHash = File.Exists(SentryHashFile) ? File.ReadAllBytes(SentryHashFile) : null,
                 });
             }
         }
@@ -232,7 +233,7 @@ namespace SteamTokenDumper
                 sentryHash = sha.ComputeHash(stream);
             }
 
-            File.WriteAllBytes(SENTRYHASHFILE, sentryHash);
+            File.WriteAllBytes(SentryHashFile, sentryHash);
 
             steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
             {
@@ -283,82 +284,101 @@ namespace SteamTokenDumper
 
         private static async Task DoTheThing(HashSet<uint> packages)
         {
+            void ConsoleRewriteLine(string text)
+            {
+                Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r{text}");
+            }
+
             Console.WriteLine();
             Console.WriteLine($"You have {packages.Count} licenses");
 
-            // TODO: packages.Split?
             var timeout = TimeSpan.FromMinutes(1);
-            var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<uint>(), packages);
-            infoTask.Timeout = timeout;
-            var info = await infoTask;
             var apps = new HashSet<uint>();
             var depots = new Dictionary<uint, bool>();
 
-            foreach (var result in info.Results)
-            {
-                foreach (var package in result.Packages.Values)
-                {
-                    foreach (var appid in package.KeyValues["appids"].Children)
-                    {
-                        apps.Add(appid.AsUnsignedInteger());
-                    }
+            Console.WriteLine();
 
-                    foreach (var depotid in package.KeyValues["depotids"].Children)
+            foreach (var chunk in packages.Split(ItemsPerRequest))
+            {
+                var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<uint>(), chunk);
+                infoTask.Timeout = timeout;
+                var info = await infoTask;
+
+                foreach (var result in info.Results)
+                {
+                    foreach (var package in result.Packages.Values)
                     {
-                        depots[depotid.AsUnsignedInteger()] = false;
+                        foreach (var appid in package.KeyValues["appids"].Children)
+                        {
+                            apps.Add(appid.AsUnsignedInteger());
+                        }
+
+                        foreach (var depotid in package.KeyValues["depotids"].Children)
+                        {
+                            depots[depotid.AsUnsignedInteger()] = false;
+                        }
                     }
                 }
+
+                ConsoleRewriteLine($"You own {apps.Count} apps and {depots.Count} depots");
             }
-
-            Console.WriteLine($"You own {apps.Count} apps");
-
-            // TODO: apps.Split?
-            var tokensTask = steamApps.PICSGetAccessTokens(apps, Enumerable.Empty<uint>());
-            tokensTask.Timeout = timeout;
-            var tokens = await tokensTask;
-            var nonZero = tokens.AppTokens.Count(x => x.Value > 0);
-            var appInfoRequests = new List<SteamApps.PICSRequest>();
 
             Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Tokens granted: {tokens.AppTokens.Count} - Denied: {tokens.AppTokensDenied.Count} - Non-zero: {nonZero}");
-            Console.ResetColor();
+            Console.WriteLine();
 
-            foreach (var token in tokens.AppTokens)
+            var appInfoRequests = new List<SteamApps.PICSRequest>();
+            var tokensCount = 0;
+            var tokensDeniedCount = 0;
+            var tokensNonZeroCount = 0;
+
+            foreach (var chunk in apps.Split(ItemsPerRequest))
             {
-                if (token.Value > 0)
-                {
-                    Payload.Apps.Add(token.Key.ToString(), token.Value.ToString());
-                }
+                var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
+                tokensTask.Timeout = timeout;
+                var tokens = await tokensTask;
 
-                appInfoRequests.Add(new SteamApps.PICSRequest
+                tokensCount += tokens.AppTokens.Count;
+                tokensDeniedCount += tokens.AppTokensDenied.Count;
+                tokensNonZeroCount += tokens.AppTokens.Count(x => x.Value > 0);
+
+                ConsoleRewriteLine($"Tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
+
+                foreach (var (key, value) in tokens.AppTokens)
                 {
-                    ID = token.Key,
-                    AccessToken = token.Value,
-                    Public = false,
-                });
+                    if (value > 0)
+                    {
+                        Payload.Apps.Add(key.ToString(), value.ToString());
+                    }
+
+                    appInfoRequests.Add(new SteamApps.PICSRequest
+                    {
+                        ID = key,
+                        AccessToken = value,
+                        Public = false,
+                    });
+                }
             }
 
+            Console.WriteLine();
 
             var tasks = new List<Task<SteamApps.DepotKeyCallback>>();
-            var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
 
             if (appInfoRequests.Count > 0)
             {
                 Console.WriteLine();
 
-                const int APPS_PER_REQUEST = 200;
                 var loops = 0;
-                var total = (-1L + appInfoRequests.Count + APPS_PER_REQUEST) / APPS_PER_REQUEST;
+                var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
 
-                foreach (var chunk in appInfoRequests.Split(APPS_PER_REQUEST))
+                foreach (var chunk in appInfoRequests.Split(ItemsPerRequest))
                 {
-                    Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
-                    Console.Write($"\rApp info request {++loops} of {total} - {tasks.Count} depot keys requested...");
+                    ConsoleRewriteLine($"App info request {++loops} of {total} - {tasks.Count} depot keys requested...");
 
                     var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
                     appJob.Timeout = timeout;
                     var appInfo = await appJob;
+
+                    var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
 
                     foreach (var result in appInfo.Results)
                     {
@@ -375,44 +395,47 @@ namespace SteamTokenDumper
                                 currentTasks.Add(appKeyJob.ToTask());
                             }
 
-                            if (app.KeyValues["depots"] != null)
+                            if (app.KeyValues["depots"] == null)
                             {
-                                foreach (var depot in app.KeyValues["depots"].Children)
+                                continue;
+                            }
+
+                            foreach (var depot in app.KeyValues["depots"].Children)
+                            {
+                                var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
+
+                                // common redistributables and steam sdk
+                                if (depotfromapp == 1007 || depotfromapp == 228980)
                                 {
-                                    var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
+                                    continue;
+                                }
 
-                                    // common redistributables and steam sdk
-                                    if (depotfromapp == 1007 || depotfromapp == 228980)
-                                    {
-                                        continue;
-                                    }
+                                if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && !depotTried)
+                                {
+                                    depots[depotid] = true;
 
-                                    if (uint.TryParse(depot.Name, out var depotid) && depots.TryGetValue(depotid, out depotTried) && !depotTried)
-                                    {
-                                        depots[depotid] = true;
+                                    var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
+                                    job.Timeout = timeout;
 
-                                        var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
-                                        job.Timeout = timeout;
-
-                                        tasks.Add(job.ToTask());
-                                        currentTasks.Add(job.ToTask());
-                                    }
+                                    tasks.Add(job.ToTask());
+                                    currentTasks.Add(job.ToTask());
                                 }
                             }
                         }
                     }
 
-                    Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
-                    Console.Write($"\rApp info request {loops} of {total} - Waiting for {currentTasks.Count} tasks to finish...");
+                    ConsoleRewriteLine($"App info request {loops} of {total} - Waiting for {currentTasks.Count} tasks to finish...");
+
                     await Task.WhenAll(currentTasks);
                     currentTasks.Clear();
                 }
+
+                appInfoRequests.Clear();
             }
 
             if (tasks.Count > 0)
             {
-                Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r");
-                Console.Write($"\rWaiting for {tasks.Count} tasks to finish...                       ");
+                ConsoleRewriteLine($"Waiting for {tasks.Count} tasks to finish...");
 
                 await Task.WhenAll(tasks);
 
@@ -429,9 +452,12 @@ namespace SteamTokenDumper
                     }
                 }
 
+                tasks.Clear();
+
                 Console.WriteLine();
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"App tokens: {Payload.Apps.Count}");
                 Console.WriteLine("Depot keys: {0}", string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value)));
                 Console.ResetColor();
             }
