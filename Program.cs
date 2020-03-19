@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -13,6 +14,8 @@ namespace SteamTokenDumper
 {
     internal static class Program
     {
+        private const string SENTRYHASHFILE = "SteamTokenDumper.sentryhash.bin";
+
         private static SteamClient steamClient;
         private static CallbackManager manager;
 
@@ -72,6 +75,7 @@ namespace SteamTokenDumper
             manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
             manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
+            manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
             LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
             isRunning = true;
@@ -143,6 +147,7 @@ namespace SteamTokenDumper
                     Password = pass,
                     AuthCode = authCode,
                     TwoFactorCode = twoFactorAuth,
+                    SentryFileHash = File.Exists(SENTRYHASHFILE) ? File.ReadAllBytes(SENTRYHASHFILE) : null,
                 });
             }
         }
@@ -206,6 +211,44 @@ namespace SteamTokenDumper
             {
                 Console.WriteLine("Waiting for licenses...");
             }
+        }
+
+        private static void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
+        {
+            int fileSize;
+            byte[] sentryHash;
+
+            using (var stream = new MemoryStream(callback.BytesToWrite))
+            {
+                stream.Seek(callback.Offset, SeekOrigin.Begin);
+                stream.Write(callback.Data, 0, callback.BytesToWrite);
+                stream.Seek(0, SeekOrigin.Begin);
+
+                fileSize = (int)stream.Length;
+
+                using var sha = new SHA1CryptoServiceProvider();
+                sentryHash = sha.ComputeHash(stream);
+            }
+
+            File.WriteAllBytes(SENTRYHASHFILE, sentryHash);
+
+            steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
+            {
+                JobID = callback.JobID,
+
+                FileName = callback.FileName,
+
+                BytesWritten = callback.BytesToWrite,
+                FileSize = fileSize,
+                Offset = callback.Offset,
+
+                Result = EResult.OK,
+                LastError = 0,
+
+                OneTimePassword = callback.OneTimePassword,
+
+                SentryFileHash = sentryHash
+            });
         }
 
         private static async void OnLicenseList(SteamApps.LicenseListCallback licenseList)
