@@ -276,10 +276,7 @@ namespace SteamTokenDumper
                 Console.ResetColor();
             }
 
-            var options = new JsonSerializerOptions();
-            options.Converters.Add(new JsonNonStringKeyDictionaryConverterFactory());
-
-            await SendTokens(JsonSerializer.Serialize(Payload, options));
+            await SendTokens(JsonSerializer.Serialize(Payload));
 
             steamUser.LogOff();
         }
@@ -331,7 +328,7 @@ namespace SteamTokenDumper
             {
                 if (token.Value > 0)
                 {
-                    Payload.Apps.Add(token.Key, token.Value.ToString());
+                    Payload.Apps.Add(token.Key.ToString(), token.Value.ToString());
                 }
 
                 appInfoRequests.Add(new SteamApps.PICSRequest
@@ -428,7 +425,7 @@ namespace SteamTokenDumper
 
                     if (task.Result.Result == EResult.OK)
                     {
-                        Payload.Depots.Add(task.Result.DepotID, BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
+                        Payload.Depots.Add(task.Result.DepotID.ToString(), BitConverter.ToString(task.Result.DepotKey).Replace("-", ""));
                     }
                 }
 
@@ -447,17 +444,17 @@ namespace SteamTokenDumper
 
             try
             {
-                using (var httpClient = new HttpClient())
+                using var httpClient = new HttpClient
                 {
-                    httpClient.Timeout = TimeSpan.FromMinutes(10);
-                    httpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Payload.Version}");
-                    var content = new StringContent(postData, Encoding.UTF8, "application/json");
-                    var result = await httpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
+                    Timeout = TimeSpan.FromMinutes(10),
+                };
+                httpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Payload.Version}");
+                var content = new StringContent(postData, Encoding.UTF8, "application/json");
+                var result = await httpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
 
-                    Console.WriteLine(await result.Content.ReadAsStringAsync());
+                Console.WriteLine(await result.Content.ReadAsStringAsync());
 
-                    result.EnsureSuccessStatusCode();
-                }
+                result.EnsureSuccessStatusCode();
             }
             catch (Exception e)
             {

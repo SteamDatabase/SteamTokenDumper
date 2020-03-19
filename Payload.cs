@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace SteamTokenDumper
@@ -13,9 +12,9 @@ namespace SteamTokenDumper
         public ulong SteamID { get; set; }
 
         [JsonPropertyName("apps")]
-        public Dictionary<uint, string> Apps { get; } = new Dictionary<uint, string>();
+        public Dictionary<string, string> Apps { get; } = new Dictionary<string, string>();
 
         [JsonPropertyName("depots")]
-        public Dictionary<uint, string> Depots { get; } = new Dictionary<uint, string>();
+        public Dictionary<string, string> Depots { get; } = new Dictionary<string, string>();
     }
 }
