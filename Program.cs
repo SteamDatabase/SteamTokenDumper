@@ -290,7 +290,7 @@ namespace SteamTokenDumper
                 {
                     await RequestPackageInfo(packages);
                 }
-                
+
                 await Request();
             }
             catch (Exception e)
@@ -313,9 +313,49 @@ namespace SteamTokenDumper
 
             Console.WriteLine();
 
+            var subInfoRequests = new List<SteamApps.PICSRequest>();
+            var tokensCount = 0;
+            var tokensDeniedCount = 0;
+            var tokensNonZeroCount = 0;
+
             foreach (var chunk in packages.Split(ItemsPerRequest))
             {
-                var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<uint>(), chunk);
+                var tokensTask = steamApps.PICSGetAccessTokens(Enumerable.Empty<uint>(), chunk);
+                tokensTask.Timeout = Timeout;
+                var tokens = await tokensTask;
+
+                tokensCount += tokens.PackageTokens.Count;
+                tokensDeniedCount += tokens.PackageTokensDenied.Count;
+                tokensNonZeroCount += tokens.PackageTokens.Count(x => x.Value > 0);
+
+                ConsoleRewriteLine($"Package tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
+
+                foreach (var (key, value) in tokens.PackageTokens)
+                {
+                    if (value > 0)
+                    {
+                        Payload.Subs.Add(key.ToString(), value.ToString());
+                    }
+
+                    subInfoRequests.Add(new SteamApps.PICSRequest
+                    {
+                        ID = key,
+                        AccessToken = value,
+                        Public = false,
+                    });
+                }
+
+                subInfoRequests.AddRange(
+                    tokens.PackageTokensDenied
+                        .Select(key => new SteamApps.PICSRequest { ID = key, AccessToken = 0, Public = false })
+                );
+            }
+
+            Console.WriteLine();
+
+            foreach (var chunk in subInfoRequests.Split(ItemsPerRequest))
+            {
+                var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
                 infoTask.Timeout = Timeout;
                 var info = await infoTask;
 
@@ -354,7 +394,7 @@ namespace SteamTokenDumper
                 tokensDeniedCount += tokens.AppTokensDenied.Count;
                 tokensNonZeroCount += tokens.AppTokens.Count(x => x.Value > 0);
 
-                ConsoleRewriteLine($"Tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
+                ConsoleRewriteLine($"App tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
 
                 foreach (var (key, value) in tokens.AppTokens)
                 {
@@ -453,6 +493,7 @@ namespace SteamTokenDumper
             Console.WriteLine();
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"Sub tokens: {Payload.Subs.Count}");
             Console.WriteLine($"App tokens: {Payload.Apps.Count}");
             Console.WriteLine($"Depot keys: {Payload.Depots.Count} ({string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value))})");
             Console.ResetColor();

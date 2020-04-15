@@ -14,6 +14,9 @@ namespace SteamTokenDumper
         [JsonPropertyName("apps")]
         public Dictionary<string, string> Apps { get; } = new Dictionary<string, string>();
 
+        [JsonPropertyName("subs")]
+        public Dictionary<string, string> Subs { get; } = new Dictionary<string, string>();
+
         [JsonPropertyName("depots")]
         public Dictionary<string, string> Depots { get; } = new Dictionary<string, string>();
     }
