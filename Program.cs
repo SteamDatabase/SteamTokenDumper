@@ -31,7 +31,7 @@ namespace SteamTokenDumper
         private static string pass;
         private static string authCode;
         private static string twoFactorAuth;
-        private static HashSet<uint> apps = new HashSet<uint>();
+        private static readonly HashSet<uint> apps = new HashSet<uint>();
 
         private static readonly Payload Payload = new Payload();
 
@@ -94,6 +94,25 @@ namespace SteamTokenDumper
             if (apps.Count == 0)
             {
                 LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
+
+                try
+                {
+                    SteamClientData.ReadFromSteamClient(Payload);
+
+                    if (Payload.Apps.Count > 0 || Payload.Subs.Count > 0)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"Got {Payload.Apps.Count} app tokens and {Payload.Subs.Count} package tokens from your Steam client files");
+                        Console.ResetColor();
+                        Console.WriteLine();
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Error.WriteLine(e);
+                    Console.ResetColor();
+                }
             }
 
             isRunning = true;
@@ -334,7 +353,7 @@ namespace SteamTokenDumper
                 {
                     if (value > 0)
                     {
-                        Payload.Subs.Add(key.ToString(), value.ToString());
+                        Payload.Subs[key.ToString()] = value.ToString();
                     }
 
                     subInfoRequests.Add(new SteamApps.PICSRequest
@@ -400,7 +419,7 @@ namespace SteamTokenDumper
                 {
                     if (value > 0)
                     {
-                        Payload.Apps.Add(key.ToString(), value.ToString());
+                        Payload.Apps[key.ToString()] = value.ToString();
                     }
 
                     appInfoRequests.Add(new SteamApps.PICSRequest
