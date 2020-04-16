@@ -10,6 +10,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using SteamKit2;
 
+#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper
 {
     internal static class Program
@@ -152,7 +153,7 @@ namespace SteamTokenDumper
                 }
                 else if (info.Key == ConsoleKey.Backspace && password.Length > 0)
                 {
-                    password = password.Substring(0, password.Length - 1);
+                    password = password[..^1];
                     var pos = Console.CursorLeft;
                     Console.SetCursorPosition(pos - 1, Console.CursorTop);
                     Console.Write(" ");
