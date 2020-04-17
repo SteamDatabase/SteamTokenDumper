@@ -99,14 +99,6 @@ namespace SteamTokenDumper
                 try
                 {
                     SteamClientData.ReadFromSteamClient(Payload);
-
-                    if (Payload.Apps.Count > 0 || Payload.Subs.Count > 0)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"Got {Payload.Apps.Count} app tokens and {Payload.Subs.Count} package tokens from your Steam client files");
-                        Console.ResetColor();
-                        Console.WriteLine();
-                    }
                 }
                 catch (Exception e)
                 {
@@ -114,6 +106,8 @@ namespace SteamTokenDumper
                     Console.Error.WriteLine(e);
                     Console.ResetColor();
                 }
+
+                Console.WriteLine();
             }
 
             isRunning = true;

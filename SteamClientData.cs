@@ -1,14 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using Microsoft.Win32;
 using ValveKeyValue;
 
+#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper
 {
     internal static class SteamClientData
     {
         public static void ReadFromSteamClient(Payload payload)
         {
+            Console.WriteLine();
+            Console.WriteLine("Trying to read tokens from Steam client files");
+
             string steamLocation = null;
 
             var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
@@ -21,11 +27,38 @@ namespace SteamTokenDumper
 
             if (steamLocation == null)
             {
+                Console.WriteLine("Did not find Steam client.");
                 return;
             }
 
-            ReadAppInfo(payload, Path.Join(steamLocation, "appcache", "appinfo.vdf"));
-            ReadPackageInfo(payload, Path.Join(steamLocation, "appcache", "packageinfo.vdf"));
+            Console.WriteLine($"Found Steam at {steamLocation}");
+
+            try
+            {
+                ReadAppInfo(payload, Path.Join(steamLocation, "appcache", "appinfo.vdf"));
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Failed to parse appinfo: {e}");
+            }
+
+            try
+            {
+                ReadPackageInfo(payload, Path.Join(steamLocation, "appcache", "packageinfo.vdf"));
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Failed to parse packageinfo: {e}");
+            }
+
+            try
+            {
+                ReadDepotKeys(payload, Path.Join(steamLocation, "config", "config.vdf"));
+            }
+            catch (Exception e)
+            {
+                Console.Error.WriteLine($"Failed to parse config: {e}");
+            }
         }
 
         private static void ReadAppInfo(Payload payload, string filename)
@@ -64,6 +97,8 @@ namespace SteamTokenDumper
 
                 deserializer.Deserialize(fs);
             } while (true);
+
+            Console.WriteLine($"Got {payload.Apps.Count} app tokens from appinfo.vdf");
         }
 
         private static void ReadPackageInfo(Payload payload, string filename)
@@ -100,6 +135,23 @@ namespace SteamTokenDumper
 
                 deserializer.Deserialize(fs);
             } while (true);
+
+            Console.WriteLine($"Got {payload.Subs.Count} package tokens from packageinfo.vdf");
+        }
+
+        private static void ReadDepotKeys(Payload payload, string filename)
+        {
+            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var data = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(fs);
+
+            var depots = data["Software"]["Valve"]["Steam"]["depots"];
+
+            foreach (var depot in (IEnumerable<KVObject>)depots)
+            {
+                payload.Depots[depot.Name] = depot["DecryptionKey"].ToString(CultureInfo.InvariantCulture).ToUpperInvariant();
+            }
+
+            Console.WriteLine($"Got {payload.Depots.Count} depot keys from config.vdf");
         }
     }
 }
