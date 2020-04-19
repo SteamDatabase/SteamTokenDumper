@@ -52,8 +52,11 @@ namespace SteamTokenDumper
             Console.WriteLine(" ");
             Console.ForegroundColor = ConsoleColor.Cyan;
             Console.WriteLine("  Doing this allows SteamDB to track hidden apps and file lists.");
-            Console.WriteLine(" ");
             Console.ResetColor();
+            Console.WriteLine(" ");
+            Console.WriteLine(" ");
+            Console.WriteLine(" ");
+            Console.WriteLine(" ");
 
             foreach (var arg in args)
             {
@@ -63,6 +66,10 @@ namespace SteamTokenDumper
                     apps.Add(id);
                 }
             }
+
+            Console.WriteLine("Press enter with empty username if you want to do an anonymous report.");
+            Console.WriteLine("This will read the files from your Steam client and get the tokens from there.");
+            Console.WriteLine(" ");
 
             Console.Write("Enter your Steam username: ");
             user = ReadUserInput(true);
