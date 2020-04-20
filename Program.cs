@@ -193,7 +193,7 @@ namespace SteamTokenDumper
 
         private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
         {
-            if (Payload.SteamID > 0)
+            if (Payload.SteamID != null)
             {
                 isRunning = false;
 
@@ -240,7 +240,7 @@ namespace SteamTokenDumper
             }
 
             user = pass = authCode = twoFactorAuth = null;
-            Payload.SteamID = callback.ClientSteamID.ConvertToUInt64();
+            Payload.SteamID = callback.ClientSteamID.Render();
 
             if (callback.ClientSteamID.AccountType == EAccountType.AnonUser)
             {

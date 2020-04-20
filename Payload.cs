@@ -9,7 +9,7 @@ namespace SteamTokenDumper
         public uint Version { get; } = 10;
 
         [JsonPropertyName("steamid")]
-        public ulong SteamID { get; set; }
+        public string SteamID { get; set; }
 
         [JsonPropertyName("apps")]
         public Dictionary<string, string> Apps { get; } = new Dictionary<string, string>();
