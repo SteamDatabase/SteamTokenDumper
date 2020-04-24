@@ -38,7 +38,7 @@ namespace SteamTokenDumper
 
         public static void Main(string[] args)
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
 
             Console.ResetColor();
             Console.WriteLine(" ");
