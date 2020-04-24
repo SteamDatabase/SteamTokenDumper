@@ -39,24 +39,14 @@ namespace SteamTokenDumper
         public static void Main(string[] args)
         {
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
-
+            
+            Console.WriteLine();
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Blue;
+            Console.WriteLine(" > Information at https://steamdb.info/tokendumper/");
             Console.ResetColor();
-            Console.WriteLine(" ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("  This program will login into your Steam account to get tokens");
-            Console.WriteLine("  all depot keys you have access to, and then submit to SteamDB.");
-            Console.WriteLine(" ");
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine("  All tokens and keys are GLOBAL, and are not unique to your account,");
-            Console.WriteLine("  SteamDB bot simply can't get them because it doesn't own these games.");
-            Console.WriteLine(" ");
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Console.WriteLine("  Doing this allows SteamDB to track hidden apps and file lists.");
-            Console.ResetColor();
-            Console.WriteLine(" ");
-            Console.WriteLine(" ");
-            Console.WriteLine(" ");
-            Console.WriteLine(" ");
+            Console.WriteLine();
+            Console.WriteLine();
 
             foreach (var arg in args)
             {
