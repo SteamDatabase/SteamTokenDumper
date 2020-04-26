@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using Microsoft.Win32;
 using ValveKeyValue;
 
@@ -15,17 +17,9 @@ namespace SteamTokenDumper
             Console.WriteLine();
             Console.WriteLine("Trying to read tokens from Steam client files");
 
-            string steamLocation = null;
+            var steamLocation = GetSteamPath();
 
-            var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
-                      RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64).OpenSubKey("SOFTWARE\\Valve\\Steam");
-
-            if (key != null && key.GetValue("SteamPath") is string steamPath)
-            {
-                steamLocation = steamPath;
-            }
-
-            if (steamLocation == null)
+            if (steamLocation == default)
             {
                 Console.WriteLine("Did not find Steam client.");
                 return;
@@ -152,6 +146,32 @@ namespace SteamTokenDumper
             }
 
             Console.WriteLine($"Got {payload.Depots.Count} depot keys from config.vdf");
+        }
+
+        private static string GetSteamPath()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
+                          RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64)
+                              .OpenSubKey("SOFTWARE\\Valve\\Steam");
+
+                if (key != null && key.GetValue("SteamPath") is string steamPath)
+                {
+                    return steamPath;
+                }
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var paths = new [] {".steam", ".steam/steam", ".steam/root", ".local/share/Steam"};
+
+                return paths
+                    .Select(path => Path.Join(home, path))
+                    .FirstOrDefault(steamPath => Directory.Exists(Path.Join(steamPath, "appcache")));
+            }
+
+            return default;
         }
     }
 }
