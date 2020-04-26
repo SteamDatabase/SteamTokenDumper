@@ -533,10 +533,7 @@ namespace SteamTokenDumper
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.Error.WriteLine("Whoops: {0}", e.Message);
-                Console.Error.WriteLine("Submission failed, written data to dumper.json file");
                 Console.ResetColor();
-
-                File.WriteAllText("dumper.json", postData);
             }
 
             Console.WriteLine();
