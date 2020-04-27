@@ -59,10 +59,11 @@ namespace SteamTokenDumper
         {
             using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var reader = new BinaryReader(fs);
+            var magic = reader.ReadUInt32();
 
-            if (reader.ReadUInt32() != 0x07_56_44_27)
+            if (magic != 0x07_56_44_27)
             {
-                throw new InvalidDataException("Unknown appinfo.vdf magic");
+                throw new InvalidDataException($"Unknown appinfo.vdf magic: {magic}");
             }
 
             reader.ReadUInt32(); // universe
@@ -99,10 +100,17 @@ namespace SteamTokenDumper
         {
             using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using var reader = new BinaryReader(fs);
+            var magic = reader.ReadUInt32();
 
-            if (reader.ReadUInt32() != 0x06_56_55_28)
+            if (magic == 0x06_56_55_27)
             {
-                throw new InvalidDataException("Unknown packageinfo.vdf magic");
+                Console.WriteLine("Old Steam client has no package tokens in packageinfo.vdf, skipping");
+                return;
+            }
+
+            if (magic != 0x06_56_55_28)
+            {
+                throw new InvalidDataException($"Unknown packageinfo.vdf magic: {magic}");
             }
 
             reader.ReadUInt32(); // universe
@@ -135,14 +143,33 @@ namespace SteamTokenDumper
 
         private static void ReadDepotKeys(Payload payload, string filename)
         {
-            using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            var data = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(fs);
+            KVObject data;
 
-            var depots = data["Software"]["Valve"]["Steam"]["depots"];
-
-            foreach (var depot in (IEnumerable<KVObject>)depots)
+            using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
-                payload.Depots[depot.Name] = depot["DecryptionKey"].ToString(CultureInfo.InvariantCulture).ToUpperInvariant();
+                data = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(fs);
+            }
+
+            // For some inexplicable reason these keys can have different capilizations
+            var depots = data.Children
+                ?.FirstOrDefault(k => k.Name.Equals("software", StringComparison.InvariantCultureIgnoreCase))
+                ?.FirstOrDefault(k => k.Name.Equals("valve", StringComparison.InvariantCultureIgnoreCase))
+                ?.FirstOrDefault(k => k.Name.Equals("steam", StringComparison.InvariantCultureIgnoreCase))
+                ?.FirstOrDefault(k => k.Name.Equals("depots", StringComparison.InvariantCultureIgnoreCase));
+
+            if (depots == null)
+            {
+                throw new InvalidDataException("Failed to find depots section in config.vdf");
+            }
+
+            foreach (var depot in depots)
+            {
+                var depotKey = depot["DecryptionKey"];
+
+                if (depotKey != null)
+                {
+                    payload.Depots[depot.Name] = depotKey.ToString(CultureInfo.InvariantCulture).ToUpperInvariant();
+                }
             }
 
             Console.WriteLine($"Got {payload.Depots.Count} depot keys from config.vdf");
