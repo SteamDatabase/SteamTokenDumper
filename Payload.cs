@@ -6,7 +6,7 @@ namespace SteamTokenDumper
     internal sealed class Payload
     {
         [JsonPropertyName("v")]
-        public uint Version { get; } = 10;
+        public uint Version { get; } = ApiClient.Version;
 
         [JsonPropertyName("steamid")]
         public string SteamID { get; set; }

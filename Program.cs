@@ -2,11 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
 using System.Security.Cryptography;
-using System.Text;
-using System.Text.Json;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -34,19 +30,18 @@ namespace SteamTokenDumper
         private static string twoFactorAuth;
         private static readonly HashSet<uint> apps = new HashSet<uint>();
 
+        private static readonly ApiClient ApiClient = new ApiClient();
         private static readonly Payload Payload = new Payload();
 
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
-            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
-            
-            Console.WriteLine();
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Blue;
-            Console.WriteLine(" > Information at https://steamdb.info/tokendumper/");
+            Console.WriteLine("[>] Read https://steamdb.info/tokendumper/ before using this");
             Console.ResetColor();
             Console.WriteLine();
-            Console.WriteLine();
+
+            await ApiClient.CheckVersion();
 
             foreach (var arg in args)
             {
@@ -56,10 +51,6 @@ namespace SteamTokenDumper
                     apps.Add(id);
                 }
             }
-
-            Console.WriteLine("Press enter with empty username if you want to do an anonymous report.");
-            Console.WriteLine("This will read the files from your Steam client and get the tokens from there.");
-            Console.WriteLine(" ");
 
             Console.Write("Enter your Steam username: ");
             user = ReadUserInput(true);
@@ -117,6 +108,8 @@ namespace SteamTokenDumper
             {
                 manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
             }
+
+            ApiClient.Dispose();
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -312,7 +305,7 @@ namespace SteamTokenDumper
                 Console.ResetColor();
             }
 
-            await SendTokens(JsonSerializer.Serialize(Payload));
+            await ApiClient.SendTokens(Payload);
 
             steamUser.LogOff();
         }
@@ -508,35 +501,6 @@ namespace SteamTokenDumper
             Console.WriteLine($"App tokens: {Payload.Apps.Count}");
             Console.WriteLine($"Depot keys: {Payload.Depots.Count} ({string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value))})");
             Console.ResetColor();
-        }
-
-        private static async Task SendTokens(string postData)
-        {
-            Console.WriteLine();
-            Console.WriteLine("Submitting tokens to SteamDB...");
-
-            try
-            {
-                using var httpClient = new HttpClient
-                {
-                    Timeout = TimeSpan.FromMinutes(10),
-                };
-                httpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Payload.Version}");
-                var content = new StringContent(postData, Encoding.UTF8, "application/json");
-                var result = await httpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
-
-                Console.WriteLine(await result.Content.ReadAsStringAsync());
-
-                result.EnsureSuccessStatusCode();
-            }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine("Whoops: {0}", e.Message);
-                Console.ResetColor();
-            }
-
-            Console.WriteLine();
         }
 
         private static void ConsoleRewriteLine(string text)
