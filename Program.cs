@@ -215,7 +215,22 @@ namespace SteamTokenDumper
 
             if (callback.Result != EResult.OK)
             {
-                Console.WriteLine("Unable to logon to Steam: {0} / {1}", callback.Result, callback.ExtendedResult);
+                Console.ForegroundColor = ConsoleColor.Red;
+
+                if (callback.Result == EResult.InvalidPassword)
+                {
+                    Console.WriteLine("You have entered an invalid username or password.");
+                }
+                else if (callback.Result == EResult.TwoFactorCodeMismatch)
+                {
+                    Console.WriteLine("You have entered an invalid two factor code.");
+                }
+                else
+                {
+                    Console.WriteLine($"Unable to logon to Steam: {callback.Result} ({callback.ExtendedResult})");
+                }
+
+                Console.ResetColor();
 
                 isRunning = false;
 
