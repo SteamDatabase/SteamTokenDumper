@@ -66,7 +66,7 @@ namespace SteamTokenDumper
                     Console.Write("Enter your Steam password: ");
                     pass = ReadUserInput();
                 }
-                while (pass.Length < 6);
+                while (string.IsNullOrEmpty(pass));
             }
 
             steamClient = new SteamClient();
