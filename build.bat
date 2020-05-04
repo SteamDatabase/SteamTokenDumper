@@ -1,7 +1,13 @@
 @echo off
 
+:: WINDOWS
+rmdir /Q /S bin\Release
 dotnet publish -c Release --runtime win-x64
-dotnet publish -c Release --runtime linux-x64
+bash -c "zip -9j SteamTokenDumper.zip bin/Release/win-x64/publish/SteamTokenDumper.exe"
 
-bash zip -9j SteamTokenDumper.zip bin/Release/win-x64/publish/SteamTokenDumper.exe
-bash env GZIP=-9 tar cvzf SteamTokenDumper-linux.tar.gz -C bin/Release/linux-x64/publish/ SteamTokenDumper
+:: LINUX
+rmdir /Q /S bin\Release
+dotnet publish -c Release --runtime linux-x64
+bash -c "env GZIP=-9 tar cvzf SteamTokenDumper-linux.tar.gz -C bin/Release/linux-x64/publish/ SteamTokenDumper"
+
+rmdir /Q /S bin\Release
