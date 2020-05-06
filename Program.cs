@@ -91,7 +91,7 @@ namespace SteamTokenDumper
                 catch (Exception e)
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.Error.WriteLine(e);
+                    await Console.Error.WriteLineAsync(e.ToString());
                     Console.ResetColor();
                 }
 
@@ -238,9 +238,10 @@ namespace SteamTokenDumper
             }
 
             user = pass = authCode = twoFactorAuth = null;
-            Payload.SteamID = callback.ClientSteamID.Render();
+            var steamid = callback.ClientSteamID ?? new SteamID(0, EUniverse.Public, EAccountType.Invalid);
+            Payload.SteamID = steamid.Render();
 
-            if (callback.ClientSteamID.AccountType == EAccountType.AnonUser)
+            if (steamid.AccountType == EAccountType.AnonUser)
             {
                 await TryDoTheThing(new HashSet<uint> { 17906 });
             }
@@ -314,9 +315,9 @@ namespace SteamTokenDumper
             }
             catch (Exception e)
             {
-                Console.Error.WriteLine();
+                await Console.Error.WriteLineAsync();
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine(e);
+                await Console.Error.WriteLineAsync(e.ToString());
                 Console.ResetColor();
             }
 
@@ -377,6 +378,11 @@ namespace SteamTokenDumper
                 var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
                 infoTask.Timeout = Timeout;
                 var info = await infoTask;
+
+                if (info.Results == null)
+                {
+                    continue;
+                }
 
                 foreach (var result in info.Results)
                 {
@@ -450,6 +456,11 @@ namespace SteamTokenDumper
                     appJob.Timeout = Timeout;
                     var appInfo = await appJob;
 
+                    if (appInfo.Results == null)
+                    {
+                        continue;
+                    }
+
                     var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
 
                     foreach (var app in chunk)
@@ -463,11 +474,6 @@ namespace SteamTokenDumper
                     {
                         foreach (var app in result.Apps.Values)
                         {
-                            if (app.KeyValues["depots"] == null)
-                            {
-                                continue;
-                            }
-
                             foreach (var depot in app.KeyValues["depots"].Children)
                             {
                                 var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();

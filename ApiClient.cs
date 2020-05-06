@@ -74,18 +74,18 @@ namespace SteamTokenDumper
                 if (versionInt != Version)
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
-                    Console.Error.WriteLine("[!] There is a new version of token dumper available.");
-                    Console.Error.WriteLine("[!] Please download the new version before dumping.");
-                    Console.Error.WriteLine();
+                    await Console.Error.WriteLineAsync("[!] There is a new version of token dumper available.");
+                    await Console.Error.WriteLineAsync("[!] Please download the new version before dumping.");
+                    await Console.Error.WriteLineAsync();
                     Console.ResetColor();
                 }
             }
             catch (Exception e)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine($"[!] Update check failed: {e.Message}");
-                Console.Error.WriteLine("[!] Your submission may fail if you continue with the dumping.");
-                Console.Error.WriteLine();
+                await Console.Error.WriteLineAsync($"[!] Update check failed: {e.Message}");
+                await Console.Error.WriteLineAsync("[!] Your submission may fail if you continue with the dumping.");
+                await Console.Error.WriteLineAsync();
                 Console.ResetColor();
             }
         }
