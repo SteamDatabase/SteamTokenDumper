@@ -11,8 +11,8 @@ namespace SteamTokenDumper
 {
     internal class ApiClient : IDisposable
     {
-        public const uint Version = 10;
-
+        public const uint Version = 11;
+        private const string Endpoint = "https://steamdb-token-dumper.xpaw.me/";
         private HttpClient HttpClient = new HttpClient();
 
         public ApiClient()
@@ -32,16 +32,21 @@ namespace SteamTokenDumper
         {
             Console.WriteLine();
             Console.WriteLine("Submitting tokens to SteamDB...");
+            Console.WriteLine();
 
             var postData = JsonSerializer.Serialize(payload);
 
             try
             {
                 var content = new StringContent(postData, Encoding.UTF8, "application/json");
-                var result = await HttpClient.PostAsync("https://steamdb.info/api/SubmitToken/", content);
+                var result = await HttpClient.PostAsync($"{Endpoint}/submit", content);
+                var output = await result.Content.ReadAsStringAsync();
 
-                Console.WriteLine(await result.Content.ReadAsStringAsync());
-
+                Console.ForegroundColor = result.IsSuccessStatusCode ? ConsoleColor.Blue : ConsoleColor.Red;
+                Console.WriteLine(output.Trim());
+                Console.ResetColor();
+                Console.WriteLine();
+                
                 result.EnsureSuccessStatusCode();
             }
             catch (Exception e)
@@ -52,13 +57,14 @@ namespace SteamTokenDumper
             }
 
             Console.WriteLine();
+            Console.WriteLine();
         }
 
         public async Task CheckVersion()
         {
             try
             {
-                var result = await HttpClient.GetAsync("https://steamdb.info/api/SubmitToken/?versioncheck");
+                var result = await HttpClient.GetAsync($"{Endpoint}/version");
 
                 result.EnsureSuccessStatusCode();
 
@@ -66,7 +72,7 @@ namespace SteamTokenDumper
 
                 if (!version.StartsWith("version="))
                 {
-                    throw new InvalidDataException("Failed to get version from steamdb.info");
+                    throw new InvalidDataException("Failed to get version.");
                 }
 
                 var versionInt = uint.Parse(version[8..]);
@@ -75,7 +81,7 @@ namespace SteamTokenDumper
                 {
                     Console.ForegroundColor = ConsoleColor.Green;
                     await Console.Error.WriteLineAsync("[!] There is a new version of token dumper available.");
-                    await Console.Error.WriteLineAsync("[!] Please download the new version before dumping.");
+                    await Console.Error.WriteLineAsync("[!] Please download the new version before continuing.");
                     await Console.Error.WriteLineAsync();
                     Console.ResetColor();
                 }
@@ -84,7 +90,7 @@ namespace SteamTokenDumper
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 await Console.Error.WriteLineAsync($"[!] Update check failed: {e.Message}");
-                await Console.Error.WriteLineAsync("[!] Your submission may fail if you continue with the dumping.");
+                await Console.Error.WriteLineAsync("[!] Your submission will most likely fail if you continue with the dumping.");
                 await Console.Error.WriteLineAsync();
                 Console.ResetColor();
             }
