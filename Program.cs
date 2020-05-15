@@ -28,12 +28,11 @@ namespace SteamTokenDumper
         private static string pass;
         private static string authCode;
         private static string twoFactorAuth;
-        private static readonly HashSet<uint> apps = new HashSet<uint>();
 
         private static readonly ApiClient ApiClient = new ApiClient();
         private static readonly Payload Payload = new Payload();
 
-        public static async Task Main(string[] args)
+        public static async Task Main()
         {
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Blue;
@@ -42,15 +41,6 @@ namespace SteamTokenDumper
             Console.WriteLine();
 
             await ApiClient.CheckVersion();
-
-            foreach (var arg in args)
-            {
-                if (uint.TryParse(arg, out var id))
-                {
-                    Console.WriteLine($"Will only request appid {id}");
-                    apps.Add(id);
-                }
-            }
 
             Console.Write("Enter your Steam username: ");
             user = ReadUserInput(true);
@@ -80,23 +70,20 @@ namespace SteamTokenDumper
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
 
-            if (apps.Count == 0)
+            LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
+
+            try
             {
-                LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
-
-                try
-                {
-                    SteamClientData.ReadFromSteamClient(Payload);
-                }
-                catch (Exception e)
-                {
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    await Console.Error.WriteLineAsync(e.ToString());
-                    Console.ResetColor();
-                }
-
-                Console.WriteLine();
+                SteamClientData.ReadFromSteamClient(Payload);
             }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                await Console.Error.WriteLineAsync(e.ToString());
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
 
             isRunning = true;
 
@@ -243,11 +230,9 @@ namespace SteamTokenDumper
 
             if (steamid.AccountType == EAccountType.AnonUser)
             {
-                await TryDoTheThing(new HashSet<uint> { 17906 });
-            }
-            else if (apps.Count > 0)
-            {
-                await TryDoTheThing(null);
+                await ApiClient.SendTokens(Payload);
+
+                steamUser.LogOff();
             }
             else
             {
@@ -297,21 +282,33 @@ namespace SteamTokenDumper
         {
             LicenseListCallback.Dispose();
 
-            var packages = licenseList.LicenseList.Select(x => x.PackageID);
+            var packages = new List<SteamApps.PICSRequest>();
+            var nonZeroTokens = 0;
 
-            await TryDoTheThing(new HashSet<uint>(packages));
-        }
+            foreach (var license in licenseList.LicenseList)
+            {
+                packages.Add(new SteamApps.PICSRequest
+                {
+                    ID = license.PackageID,
+                    AccessToken = license.AccessToken,
+                    Public = false,
+                });
 
-        private static async Task TryDoTheThing(HashSet<uint> packages)
-        {
+                if (license.AccessToken > 0)
+                {
+                    Payload.Subs[license.PackageID.ToString()] = license.AccessToken.ToString();
+                    nonZeroTokens++;
+                }
+            }
+
+            Console.WriteLine();
+            Console.WriteLine($"You have {packages.Count} licenses ({nonZeroTokens} of them have a token)");
+            Console.WriteLine();
+
             try
             {
-                if (packages != null)
-                {
-                    await RequestPackageInfo(packages);
-                }
-
-                await Request();
+                var apps = await RequestPackageInfo(packages);
+                await Request(apps);
             }
             catch (Exception e)
             {
@@ -326,52 +323,9 @@ namespace SteamTokenDumper
             steamUser.LogOff();
         }
 
-        private static async Task RequestPackageInfo(HashSet<uint> packages)
+        private static async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
         {
-            Console.WriteLine();
-            Console.WriteLine($"You have {packages.Count} licenses");
-
-            Console.WriteLine();
-
-            var subInfoRequests = new List<SteamApps.PICSRequest>();
-            var tokensCount = 0;
-            var tokensDeniedCount = 0;
-            var tokensNonZeroCount = 0;
-
-            foreach (var chunk in packages.Split(ItemsPerRequest))
-            {
-                var tokensTask = steamApps.PICSGetAccessTokens(Enumerable.Empty<uint>(), chunk);
-                tokensTask.Timeout = Timeout;
-                var tokens = await tokensTask;
-
-                tokensCount += tokens.PackageTokens.Count;
-                tokensDeniedCount += tokens.PackageTokensDenied.Count;
-                tokensNonZeroCount += tokens.PackageTokens.Count(x => x.Value > 0);
-
-                ConsoleRewriteLine($"Package tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
-
-                foreach (var (key, value) in tokens.PackageTokens)
-                {
-                    if (value > 0)
-                    {
-                        Payload.Subs[key.ToString()] = value.ToString();
-                    }
-
-                    subInfoRequests.Add(new SteamApps.PICSRequest
-                    {
-                        ID = key,
-                        AccessToken = value,
-                        Public = false,
-                    });
-                }
-
-                subInfoRequests.AddRange(
-                    tokens.PackageTokensDenied
-                        .Select(key => new SteamApps.PICSRequest { ID = key, AccessToken = 0, Public = false })
-                );
-            }
-
-            Console.WriteLine();
+            var apps = new HashSet<uint>();
 
             foreach (var chunk in subInfoRequests.Split(ItemsPerRequest))
             {
@@ -400,9 +354,11 @@ namespace SteamTokenDumper
 
             Console.WriteLine();
             Console.WriteLine();
+
+            return apps;
         }
 
-        private static async Task Request()
+        private static async Task Request(HashSet<uint> apps)
         {
             var appInfoRequests = new List<SteamApps.PICSRequest>();
             var tokensCount = 0;

@@ -11,7 +11,7 @@ namespace SteamTokenDumper
 {
     internal class ApiClient : IDisposable
     {
-        public const uint Version = 11;
+        public const uint Version = 12;
         private const string Endpoint = "https://steamdb-token-dumper.xpaw.me/";
         private HttpClient HttpClient = new HttpClient();
 

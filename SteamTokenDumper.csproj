@@ -10,7 +10,7 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SteamKit2" Version="2.3.0-Beta.1" />
+    <PackageReference Include="SteamKit2" Version="2.3.0-beta.2" />
     <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
   </ItemGroup>
 </Project>

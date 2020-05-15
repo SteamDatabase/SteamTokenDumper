@@ -35,6 +35,7 @@ namespace SteamTokenDumper
                 Console.Error.WriteLine($"Failed to parse appinfo: {e}");
             }
 
+            /*
             try
             {
                 ReadPackageInfo(payload, Path.Join(steamLocation, "appcache", "packageinfo.vdf"));
@@ -43,6 +44,7 @@ namespace SteamTokenDumper
             {
                 Console.Error.WriteLine($"Failed to parse packageinfo: {e}");
             }
+            */
 
             try
             {
