@@ -111,3 +111,5 @@ UpgradeLog*.XML
 
 SteamTokenDumper.zip
 SteamTokenDumper-linux.tar.gz
+ApiClient_build.cs.tmp
+apiclient_token.txt

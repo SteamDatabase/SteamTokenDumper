@@ -8,6 +8,9 @@ namespace SteamTokenDumper
         [JsonPropertyName("v")]
         public uint Version { get; } = ApiClient.Version;
 
+        [JsonPropertyName("token")]
+        public string Token { get; } = ApiClient.Token;
+
         [JsonPropertyName("steamid")]
         public string SteamID { get; set; }
 
