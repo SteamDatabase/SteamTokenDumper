@@ -182,6 +182,11 @@ namespace SteamTokenDumper
                                     continue;
                                 }
 
+                                if (payload.Depots.ContainsKey(depot.Name!))
+                                {
+                                    continue;
+                                }
+
                                 var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
                                 job.Timeout = Timeout;
                                 currentTasks.Add(job.ToTask());
