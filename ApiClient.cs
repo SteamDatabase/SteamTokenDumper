@@ -2,6 +2,7 @@
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -43,12 +44,29 @@ namespace SteamTokenDumper
                 var content = new StringContent(postData, Encoding.UTF8, "application/json");
                 var result = await HttpClient.PostAsync($"{Endpoint}/submit", content);
                 var output = await result.Content.ReadAsStringAsync();
+                output = output.Trim();
 
                 Console.ForegroundColor = result.IsSuccessStatusCode ? ConsoleColor.Blue : ConsoleColor.Red;
-                Console.WriteLine(output.Trim());
+                Console.WriteLine(output);
                 Console.ResetColor();
                 Console.WriteLine();
                 
+                try
+                {
+                    output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n".Replace("\r", "");
+
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        output = output.Replace("\n", "\r\n");
+                    }
+
+                    await File.WriteAllTextAsync("SteamTokenDumper.result.log", output);
+                }
+                catch (Exception)
+                {
+                    // don't care
+                }
+
                 result.EnsureSuccessStatusCode();
             }
             catch (Exception e)
