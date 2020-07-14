@@ -8,7 +8,7 @@ powershell -Command "(gc ApiClient_build.cs.tmp) -replace '@STEAMDB_BUILD_TOKEN@
 del SteamTokenDumper.zip
 rmdir /Q /S obj
 rmdir /Q /S bin\Release
-dotnet publish -c Release -p:PublishSingleFile=true --runtime win-x64
+dotnet publish -c Release --runtime win-x64 /p:PublishSingleFile=true /p:IncludeNativeLibrariesInSingleFile=true
 bash -c "zip -9j SteamTokenDumper.zip bin/Release/win-x64/publish/SteamTokenDumper.exe"
 
 :: LINUX

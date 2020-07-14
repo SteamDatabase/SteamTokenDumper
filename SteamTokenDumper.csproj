@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <OutputType>Exe</OutputType>
+    <Deterministic>true</Deterministic>
     <PublishTrimmed>true</PublishTrimmed>
     <ApplicationIcon>steamdb.ico</ApplicationIcon>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
@@ -19,7 +20,7 @@
     <AssemblyOriginatorKeyFile>SteamTokenDumper.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SteamKit2" Version="2.3.0-beta.2" />
-    <PackageReference Include="ValveKeyValue" Version="0.3.0.144" />
+    <PackageReference Include="SteamKit2" Version="2.3.0" />
+    <PackageReference Include="ValveKeyValue" Version="0.3.1.152" />
   </ItemGroup>
 </Project>
