@@ -21,6 +21,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SteamKit2" Version="2.3.0" />
-    <PackageReference Include="ValveKeyValue" Version="0.3.1.152" />
+    <PackageReference Include="ValveKeyValue" Version="0.4.2" />
   </ItemGroup>
 </Project>
