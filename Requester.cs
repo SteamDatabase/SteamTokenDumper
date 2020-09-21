@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using SteamKit2;
 
+#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper
 {
     internal class Requester

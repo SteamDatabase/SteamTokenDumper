@@ -143,6 +143,20 @@ namespace SteamTokenDumper
             }
             else
             {
+                byte[] sentryFileHash = null;
+
+                try
+                {
+                    if (File.Exists(SentryHashFile))
+                    {
+                        sentryFileHash = File.ReadAllBytes(SentryHashFile);
+                    }
+                }
+                catch
+                {
+                    // If for whatever reason we can't read the sentry
+                }
+
                 steamUser.LogOn(new SteamUser.LogOnDetails
                 {
                     LoginID = 1337,
@@ -150,7 +164,7 @@ namespace SteamTokenDumper
                     Password = pass,
                     AuthCode = authCode,
                     TwoFactorCode = twoFactorAuth,
-                    SentryFileHash = File.Exists(SentryHashFile) ? File.ReadAllBytes(SentryHashFile) : null
+                    SentryFileHash = sentryFileHash,
                 });
             }
         }
@@ -251,7 +265,14 @@ namespace SteamTokenDumper
                 sentryHash = sha.ComputeHash(stream);
             }
 
-            File.WriteAllBytes(SentryHashFile, sentryHash);
+            try
+            {
+                File.WriteAllBytes(SentryHashFile, sentryHash);
+            }
+            catch
+            {
+                return;
+            }
 
             steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
             {
