@@ -18,8 +18,8 @@ echo.
 del SteamTokenDumper.zip
 rmdir /Q /S obj
 rmdir /Q /S bin\Release
-dotnet publish -c Release --runtime win-x64 /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true
-bash -c "zip -9j SteamTokenDumper.zip bin/Release/win-x64/publish/SteamTokenDumper.exe"
+dotnet publish -c Release --runtime win-x64 --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true
+bash -c "cd bin && zip -9r ../SteamTokenDumper.zip SteamTokenDumper/"
 
 echo.
 echo :: BUILDING LINUX

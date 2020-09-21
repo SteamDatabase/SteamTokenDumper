@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -9,8 +10,6 @@ namespace SteamTokenDumper
 {
     internal static class Program
     {
-        private const string SentryHashFile = "SteamTokenDumper.sentryhash.bin";
-
         private static SteamClient steamClient;
         private static CallbackManager manager;
 
@@ -26,6 +25,8 @@ namespace SteamTokenDumper
 
         private static readonly ApiClient ApiClient = new ApiClient();
         private static readonly Payload Payload = new Payload();
+        private static string SentryHashFile;
+        public static string AppPath { get; private set; }
 
         public static async Task Main()
         {
@@ -34,6 +35,9 @@ namespace SteamTokenDumper
             Console.WriteLine("[>] Read https://steamdb.info/tokendumper/ before using this");
             Console.ResetColor();
             Console.WriteLine();
+
+            AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
+            SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
 
             await ApiClient.CheckVersion();
 

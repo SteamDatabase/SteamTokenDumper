@@ -60,7 +60,7 @@ namespace SteamTokenDumper
                         output = output.Replace("\n", "\r\n");
                     }
 
-                    await File.WriteAllTextAsync("SteamTokenDumper.result.log", output);
+                    await File.WriteAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
                 }
                 catch (Exception)
                 {
