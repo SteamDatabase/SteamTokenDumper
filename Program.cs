@@ -46,7 +46,12 @@ namespace SteamTokenDumper
 
             if (string.IsNullOrEmpty(user))
             {
-                Console.WriteLine("Will login as an anonymous account");
+                Console.WriteLine("Doing an anonymous dump. We recommend logging in for a thorough dump.");
+
+                var random = new Random();
+                Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
+                
+                await ApiClient.SendTokens(Payload);
             }
             else
             {
@@ -56,8 +61,18 @@ namespace SteamTokenDumper
                     pass = ReadUserInput();
                 }
                 while (string.IsNullOrEmpty(pass));
+
+                await InitializeSteamKit();
             }
 
+            ApiClient.Dispose();
+
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+        }
+
+        private static async Task InitializeSteamKit()
+        {
             steamClient = new SteamClient();
             manager = new CallbackManager(steamClient);
 
@@ -91,13 +106,8 @@ namespace SteamTokenDumper
 
             while (isRunning)
             {
-                manager.RunWaitCallbacks(TimeSpan.FromSeconds(1));
+                manager.RunWaitAllCallbacks(TimeSpan.FromSeconds(5));
             }
-
-            ApiClient.Dispose();
-
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey();
         }
 
         private static string ReadUserInput(bool showFirstChar = false)
@@ -141,36 +151,29 @@ namespace SteamTokenDumper
         {
             Console.WriteLine("Connected to Steam! Logging in...");
 
-            if (string.IsNullOrEmpty(user))
-            {
-                steamUser.LogOnAnonymous();
-            }
-            else
-            {
-                byte[] sentryFileHash = null;
+            byte[] sentryFileHash = null;
 
-                try
+            try
+            {
+                if (File.Exists(SentryHashFile))
                 {
-                    if (File.Exists(SentryHashFile))
-                    {
-                        sentryFileHash = File.ReadAllBytes(SentryHashFile);
-                    }
+                    sentryFileHash = File.ReadAllBytes(SentryHashFile);
                 }
-                catch
-                {
-                    // If for whatever reason we can't read the sentry
-                }
-
-                steamUser.LogOn(new SteamUser.LogOnDetails
-                {
-                    LoginID = 1337,
-                    Username = user,
-                    Password = pass,
-                    AuthCode = authCode,
-                    TwoFactorCode = twoFactorAuth,
-                    SentryFileHash = sentryFileHash,
-                });
             }
+            catch
+            {
+                // If for whatever reason we can't read the sentry
+            }
+
+            steamUser.LogOn(new SteamUser.LogOnDetails
+            {
+                LoginID = 1337,
+                Username = user,
+                Password = pass,
+                AuthCode = authCode,
+                TwoFactorCode = twoFactorAuth,
+                SentryFileHash = sentryFileHash,
+            });
         }
 
         private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
