@@ -46,7 +46,10 @@ namespace SteamTokenDumper
 
             if (string.IsNullOrEmpty(user))
             {
-                Console.WriteLine("Doing an anonymous dump. We recommend logging in for a thorough dump.");
+                Console.Write("Doing an anonymous dump. ");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("We recommend logging in for a thorough dump.");
+                Console.ResetColor();
 
                 var random = new Random();
                 Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
