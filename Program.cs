@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Security.Cryptography;
@@ -53,10 +54,10 @@ namespace SteamTokenDumper
 
                 var random = new Random();
                 Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
-                
+
                 await ApiClient.SendTokens(Payload);
             }
-            else
+            else if (user != "anonymous")
             {
                 do
                 {
@@ -65,6 +66,10 @@ namespace SteamTokenDumper
                 }
                 while (string.IsNullOrEmpty(pass));
 
+                await InitializeSteamKit();
+            }
+            else
+            {
                 await InitializeSteamKit();
             }
 
@@ -153,6 +158,12 @@ namespace SteamTokenDumper
         private static void OnConnected(SteamClient.ConnectedCallback callback)
         {
             Console.WriteLine("Connected to Steam! Logging in...");
+
+            if (user == "anonymous")
+            {
+                steamUser.LogOnAnonymous();
+                return;
+            }
 
             byte[] sentryFileHash = null;
 
@@ -248,6 +259,17 @@ namespace SteamTokenDumper
 
             if (steamid.AccountType == EAccountType.AnonUser)
             {
+                var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
+                await requester.ProcessPackages(new List<SteamApps.PICSRequest>
+                {
+                    new SteamApps.PICSRequest
+                    {
+                        ID = 17906,
+                        AccessToken = 0,
+                        Public = false
+                    }
+                });
+
                 await ApiClient.SendTokens(Payload);
 
                 steamUser.LogOff();
@@ -308,7 +330,8 @@ namespace SteamTokenDumper
             LicenseListCallback.Dispose();
 
             var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
-            await requester.ProcessLicenseList(licenseList);
+            var packages = requester.ProcessLicenseList(licenseList);
+            await requester.ProcessPackages(packages);
 
             await ApiClient.SendTokens(Payload);
 

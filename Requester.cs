@@ -20,10 +20,9 @@ namespace SteamTokenDumper
             this.steamApps = steamApps;
         }
 
-        public async Task ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
+        public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
         {
             var packages = new List<SteamApps.PICSRequest>();
-            var nonZeroTokens = 0;
 
             foreach (var license in licenseList.LicenseList)
             {
@@ -40,11 +39,15 @@ namespace SteamTokenDumper
                 }
 
                 payload.Subs[license.PackageID.ToString()] = license.AccessToken.ToString();
-                nonZeroTokens++;
             }
 
+            return packages;
+        }
+
+        public async Task ProcessPackages(List<SteamApps.PICSRequest> packages)
+        {
             Console.WriteLine();
-            Console.WriteLine($"You have {packages.Count} licenses ({nonZeroTokens} of them have a token)");
+            Console.WriteLine($"You have {packages.Count} licenses ({packages.Count(x => x.AccessToken != 0)} of them have a token)");
             Console.WriteLine();
 
             try
