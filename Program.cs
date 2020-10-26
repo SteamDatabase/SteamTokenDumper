@@ -42,6 +42,19 @@ namespace SteamTokenDumper
 
             await ApiClient.CheckVersion();
 
+            try
+            {
+                SteamClientData.ReadFromSteamClient(Payload);
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                await Console.Error.WriteLineAsync(e.ToString());
+                Console.ResetColor();
+            }
+
+            Console.WriteLine();
+
             Console.Write("Enter your Steam username: ");
             user = ReadUserInput(true);
 
@@ -92,19 +105,6 @@ namespace SteamTokenDumper
             manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
 
             LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
-
-            try
-            {
-                SteamClientData.ReadFromSteamClient(Payload);
-            }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                await Console.Error.WriteLineAsync(e.ToString());
-                Console.ResetColor();
-            }
-
-            Console.WriteLine();
 
             isRunning = true;
 
