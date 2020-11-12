@@ -79,11 +79,11 @@ namespace SteamTokenDumper
                 }
                 while (string.IsNullOrEmpty(pass));
 
-                await InitializeSteamKit();
+                InitializeSteamKit();
             }
             else
             {
-                await InitializeSteamKit();
+                InitializeSteamKit();
             }
 
             ApiClient.Dispose();
@@ -92,7 +92,7 @@ namespace SteamTokenDumper
             Console.ReadKey();
         }
 
-        private static async Task InitializeSteamKit()
+        private static void InitializeSteamKit()
         {
             steamClient = new SteamClient();
             manager = new CallbackManager(steamClient);
