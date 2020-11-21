@@ -261,13 +261,19 @@ namespace SteamTokenDumper
 
             if (steamid.AccountType == EAccountType.AnonUser)
             {
+                const uint ANONYMOUS_PACKAGE = 17906;
+
                 var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
+
+                var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
+                tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
+
                 await requester.ProcessPackages(new List<SteamApps.PICSRequest>
                 {
                     new SteamApps.PICSRequest
                     {
-                        ID = 17906,
-                        AccessToken = 0,
+                        ID = ANONYMOUS_PACKAGE,
+                        AccessToken = token,
                         Public = false
                     }
                 });
