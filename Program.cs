@@ -54,16 +54,18 @@ namespace SteamTokenDumper
             }
 
             Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("Logging in means this program can do a through dump,");
+            Console.WriteLine("as getting tokens from Steam files only works for installed games.");
+            Console.ResetColor();
+            Console.WriteLine();
 
             Console.Write("Enter your Steam username: ");
             user = ReadUserInput(true);
 
             if (string.IsNullOrEmpty(user))
             {
-                Console.Write("Doing an anonymous dump. ");
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("We recommend logging in for a thorough dump.");
-                Console.ResetColor();
+                Console.Write("Doing an anonymous dump.");
 
                 var random = new Random();
                 Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
