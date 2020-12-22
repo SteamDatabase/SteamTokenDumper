@@ -220,12 +220,12 @@ namespace SteamTokenDumper
                 if (is2FA)
                 {
                     Console.Write("Please enter your 2 factor auth code from your authenticator app: ");
-                    twoFactorAuth = Console.ReadLine();
+                    twoFactorAuth = Console.ReadLine()?.Trim();
                 }
                 else
                 {
                     Console.Write("Please enter the auth code sent to the email at {0}: ", callback.EmailDomain);
-                    authCode = Console.ReadLine();
+                    authCode = Console.ReadLine()?.Trim();
                 }
 
                 return;
