@@ -55,7 +55,7 @@ namespace SteamTokenDumper
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Logging in means this program can do a through dump,");
+            Console.WriteLine("Logging in means this program can do a thorough dump,");
             Console.WriteLine("as getting tokens from Steam files only works for installed games.");
             Console.ResetColor();
             Console.WriteLine();
