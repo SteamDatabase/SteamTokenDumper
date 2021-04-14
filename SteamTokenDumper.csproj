@@ -19,7 +19,7 @@
     <AssemblyOriginatorKeyFile>SteamTokenDumper.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="SteamKit2" Version="2.3.0" />
+    <PackageReference Include="SteamKit2" Version="2.4.0-Alpha.2" />
     <PackageReference Include="ValveKeyValue" Version="0.5.0.4" />
   </ItemGroup>
 </Project>
