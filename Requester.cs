@@ -135,9 +135,7 @@ namespace SteamTokenDumper
             }
 
             Console.WriteLine();
-
-            var depotKeys = new Dictionary<EResult, int>();
-
+            
             if (appInfoRequests.Count > 0)
             {
                 Console.WriteLine();
@@ -204,9 +202,6 @@ namespace SteamTokenDumper
 
                     foreach (var task in currentTasks)
                     {
-                        depotKeys.TryGetValue(task.Result.Result, out var currentCount);
-                        depotKeys[task.Result.Result] = currentCount + 1;
-
                         if (task.Result.Result == EResult.OK)
                         {
                             payload.Depots[task.Result.DepotID.ToString()] = BitConverter.ToString(task.Result.DepotKey).Replace("-", "");
@@ -222,7 +217,7 @@ namespace SteamTokenDumper
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Sub tokens: {payload.Subs.Count}");
             Console.WriteLine($"App tokens: {payload.Apps.Count}");
-            Console.WriteLine($"Depot keys: {payload.Depots.Count} ({string.Join(" - ", depotKeys.Select(x => x.Key + "=" + x.Value))})");
+            Console.WriteLine($"Depot keys: {payload.Depots.Count}");
             Console.ResetColor();
         }
 
