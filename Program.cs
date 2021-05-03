@@ -21,12 +21,15 @@ namespace SteamTokenDumper
 
         private static string user;
         private static string pass;
+        private static string loginKey;
         private static string authCode;
         private static string twoFactorAuth;
-
-        private static readonly ApiClient ApiClient = new ApiClient();
-        private static readonly Payload Payload = new Payload();
+        
+        private static readonly Configuration Configuration = new();
+        private static readonly ApiClient ApiClient = new();
+        private static readonly Payload Payload = new();
         private static string SentryHashFile;
+        private static string RememberCredentialsFile;
         public static string AppPath { get; private set; }
 
         public static async Task Main()
@@ -39,8 +42,29 @@ namespace SteamTokenDumper
 
             AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
             SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
+            RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
 
             await ApiClient.CheckVersion();
+
+            Console.WriteLine("Take a look at the 'SteamTokenDumper.config.ini' file for possible options.");
+
+            try
+            {
+                await Configuration.Load();
+
+                if (Configuration.RememberLogin && File.Exists(RememberCredentialsFile))
+                {
+                    var credentials = (await File.ReadAllTextAsync(RememberCredentialsFile)).Split(';', 2);
+                    user = credentials[0];
+                    loginKey = credentials[1];
+                }
+            }
+            catch (Exception e)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                await Console.Error.WriteLineAsync(e.ToString());
+                Console.ResetColor();
+            }
 
             try
             {
@@ -52,43 +76,61 @@ namespace SteamTokenDumper
                 await Console.Error.WriteLineAsync(e.ToString());
                 Console.ResetColor();
             }
-
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Logging in means this program can do a thorough dump,");
-            Console.WriteLine("as getting tokens from Steam files only works for installed games.");
-            Console.ResetColor();
+            
             Console.WriteLine();
 
-            Console.Write("Enter your Steam username: ");
-            user = ReadUserInput(true);
-
-            if (string.IsNullOrEmpty(user))
+            if (loginKey != null)
             {
-                Console.Write("Doing an anonymous dump.");
-
-                var random = new Random();
-                Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
-
-                await ApiClient.SendTokens(Payload);
-            }
-            else if (user != "anonymous")
-            {
-                do
-                {
-                    Console.Write("Enter your Steam password: ");
-                    pass = ReadUserInput();
-                }
-                while (string.IsNullOrEmpty(pass));
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"Logging in using previously remembered login. Delete '{Path.GetFileName(RememberCredentialsFile)}' file if you want it forgotten.");
+                Console.ResetColor();
+                Console.WriteLine();
 
                 InitializeSteamKit();
             }
             else
             {
-                InitializeSteamKit();
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Logging in means this program can do a thorough dump,");
+                Console.WriteLine("as getting tokens from Steam files only works for installed games.");
+                Console.ResetColor();
+                Console.WriteLine();
+
+                Console.Write("Enter your Steam username: ");
+                user = ReadUserInput(true);
+
+                if (string.IsNullOrEmpty(user))
+                {
+                    Console.Write("Doing an anonymous dump.");
+
+                    var random = new Random();
+                    Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
+
+                    await ApiClient.SendTokens(Payload, Configuration);
+                }
+                else if (user != "anonymous")
+                {
+                    do
+                    {
+                        Console.Write("Enter your Steam password: ");
+                        pass = ReadUserInput();
+                    } while (string.IsNullOrEmpty(pass));
+
+                    InitializeSteamKit();
+                }
+                else
+                {
+                    InitializeSteamKit();
+                }
             }
 
             ApiClient.Dispose();
+
+            // Read any buffered keys so it doesn't auto exit
+            while (Console.KeyAvailable)
+            {
+                Console.ReadKey(true);
+            }
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -105,6 +147,7 @@ namespace SteamTokenDumper
             manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
+            manager.Subscribe<SteamUser.LoginKeyCallback>(OnLoginKey);
 
             LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
@@ -186,9 +229,11 @@ namespace SteamTokenDumper
                 LoginID = 1337,
                 Username = user,
                 Password = pass,
+                LoginKey = loginKey,
                 AuthCode = authCode,
                 TwoFactorCode = twoFactorAuth,
                 SentryFileHash = sentryFileHash,
+                ShouldRememberPassword = Configuration.RememberLogin,
             });
         }
 
@@ -237,7 +282,23 @@ namespace SteamTokenDumper
 
                 if (callback.Result == EResult.InvalidPassword)
                 {
-                    Console.WriteLine("You have entered an invalid username or password.");
+                    if (Configuration.RememberLogin && loginKey != null)
+                    {
+                        Console.WriteLine("Stored credentials are invalid, credentials file has been deleted.");
+
+                        try
+                        {
+                            File.Delete(RememberCredentialsFile);
+                        }
+                        catch
+                        {
+                            // who cares
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("You have entered an invalid username or password.");
+                    }
                 }
                 else if (callback.Result == EResult.TwoFactorCodeMismatch)
                 {
@@ -255,7 +316,16 @@ namespace SteamTokenDumper
                 return;
             }
 
-            user = pass = authCode = twoFactorAuth = null;
+            if (!Configuration.RememberLogin)
+            {
+                user = null;
+            }
+
+            pass = null;
+            loginKey = null;
+            authCode = null;
+            twoFactorAuth = null;
+
             var steamid = callback.ClientSteamID ?? new SteamID(0, EUniverse.Public, EAccountType.Invalid);
             Payload.SteamID = steamid.Render();
 
@@ -278,7 +348,7 @@ namespace SteamTokenDumper
                     }
                 });
 
-                await ApiClient.SendTokens(Payload);
+                await ApiClient.SendTokens(Payload, Configuration);
 
                 steamUser.LogOff();
             }
@@ -332,16 +402,25 @@ namespace SteamTokenDumper
                 SentryFileHash = sentryHash
             });
         }
+        
+        private static async void OnLoginKey(SteamUser.LoginKeyCallback callback)
+        {
+            await File.WriteAllTextAsync(RememberCredentialsFile, $"{user};{callback.LoginKey}");
+
+            user = null;
+
+            steamUser.AcceptNewLoginKey(callback);
+        }
 
         private static async void OnLicenseList(SteamApps.LicenseListCallback licenseList)
         {
             LicenseListCallback.Dispose();
 
             var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
-            var packages = requester.ProcessLicenseList(licenseList);
+            var packages = requester.ProcessLicenseList(licenseList, Configuration);
             await requester.ProcessPackages(packages);
 
-            await ApiClient.SendTokens(Payload);
+            await ApiClient.SendTokens(Payload, Configuration);
 
             steamUser.LogOff();
         }

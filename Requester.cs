@@ -20,12 +20,19 @@ namespace SteamTokenDumper
             this.steamApps = steamApps;
         }
 
-        public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
+        public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList, Configuration config)
         {
             var packages = new List<SteamApps.PICSRequest>();
+            var skippedPackages = new List<uint>();
 
             foreach (var license in licenseList.LicenseList)
             {
+                if (config.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
+                {
+                    skippedPackages.Add(license.PackageID);
+                    continue;
+                }
+
                 packages.Add(new SteamApps.PICSRequest
                 {
                     ID = license.PackageID,
@@ -39,6 +46,16 @@ namespace SteamTokenDumper
                 }
 
                 payload.Subs[license.PackageID.ToString()] = license.AccessToken.ToString();
+            }
+
+            if (skippedPackages.Any())
+            {
+                skippedPackages.Sort();
+
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"Skipped auto granted packages: {string.Join(", ", skippedPackages)}");
+                Console.ResetColor();
             }
 
             return packages;

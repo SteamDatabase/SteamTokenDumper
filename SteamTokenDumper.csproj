@@ -22,4 +22,9 @@
     <PackageReference Include="SteamKit2" Version="2.4.0-Alpha.2" />
     <PackageReference Include="ValveKeyValue" Version="0.5.0.4" />
   </ItemGroup>
+  <ItemGroup>
+    <None Update="SteamTokenDumper.config.ini">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

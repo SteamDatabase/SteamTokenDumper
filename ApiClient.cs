@@ -16,7 +16,7 @@ namespace SteamTokenDumper
 
         public const string Token = "@STEAMDB_BUILD_TOKEN@";
         private const string Endpoint = "https://steamdb-token-dumper.xpaw.me";
-        private HttpClient HttpClient = new HttpClient();
+        private HttpClient HttpClient = new();
 
         public ApiClient()
         {
@@ -31,8 +31,44 @@ namespace SteamTokenDumper
             HttpClient = null;
         }
 
-        public async Task SendTokens(Payload payload)
+        public async Task SendTokens(Payload payload, Configuration config)
         {
+            if (config.DumpPayload)
+            {
+                Console.WriteLine();
+
+                var payloadDump = new PayloadDump(payload);
+                var file = Path.Combine(Program.AppPath, "SteamTokenDumper.payload.json");
+
+                try
+                {
+                    await File.WriteAllTextAsync(file, JsonSerializer.Serialize(payloadDump, new JsonSerializerOptions
+                    {
+                        WriteIndented = true,
+                    }));
+
+                    Console.WriteLine($"Written payload dump to '{Path.GetFileName(file)}'. Modifying this file will not do anything.");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Failed to write payload dump: {e.Message}");
+                }
+            }
+
+            if (config.VerifyBeforeSubmit)
+            {
+                Console.WriteLine();
+
+                // Read any buffered keys so it doesn't auto submit
+                while (Console.KeyAvailable)
+                {
+                    Console.ReadKey(true);
+                }
+
+                Console.WriteLine("Press any key to continue submission...");
+                Console.ReadKey(true);
+            }
+
             Console.WriteLine();
             Console.WriteLine("Submitting tokens to SteamDB...");
             Console.WriteLine();
