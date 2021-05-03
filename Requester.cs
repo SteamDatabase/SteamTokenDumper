@@ -13,14 +13,16 @@ namespace SteamTokenDumper
         private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);
         private readonly Payload payload;
         private readonly SteamApps steamApps;
+        private readonly Configuration config;
 
-        public Requester(Payload payload, SteamApps steamApps)
+        public Requester(Payload payload, SteamApps steamApps, Configuration config)
         {
             this.payload = payload;
             this.steamApps = steamApps;
+            this.config = config;
         }
 
-        public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList, Configuration config)
+        public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
         {
             var packages = new List<SteamApps.PICSRequest>();
             var skippedPackages = new HashSet<uint>();
@@ -59,7 +61,7 @@ namespace SteamTokenDumper
             return packages;
         }
 
-        public async Task ProcessPackages(List<SteamApps.PICSRequest> packages, Configuration config)
+        public async Task ProcessPackages(List<SteamApps.PICSRequest> packages)
         {
             Console.WriteLine();
             Console.WriteLine($"You have {packages.Count} licenses ({packages.Count(x => x.AccessToken != 0)} of them have a token)");
@@ -67,7 +69,7 @@ namespace SteamTokenDumper
 
             try
             {
-                var apps = await RequestPackageInfo(packages, config);
+                var apps = await RequestPackageInfo(packages);
                 await Request(apps);
             }
             catch (Exception e)
@@ -79,7 +81,7 @@ namespace SteamTokenDumper
             }
         }
 
-        private async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests, Configuration config)
+        private async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
         {
             var apps = new HashSet<uint>();
             var skippedApps = new HashSet<uint>();
@@ -221,6 +223,13 @@ namespace SteamTokenDumper
                                 }
 
                                 if (!uint.TryParse(depot.Name, out var depotid))
+                                {
+                                    continue;
+                                }
+
+                                var dlcappid = depot["dlcappid"].AsUnsignedInteger();
+
+                                if (config.SkipApps.Contains(dlcappid))
                                 {
                                     continue;
                                 }

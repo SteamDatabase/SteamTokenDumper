@@ -336,7 +336,7 @@ namespace SteamTokenDumper
             {
                 const uint ANONYMOUS_PACKAGE = 17906;
 
-                var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
+                var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
 
                 var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
                 tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
@@ -349,7 +349,7 @@ namespace SteamTokenDumper
                         AccessToken = token,
                         Public = false
                     }
-                }, Configuration);
+                });
 
                 await ApiClient.SendTokens(Payload, Configuration);
 
@@ -419,9 +419,9 @@ namespace SteamTokenDumper
         {
             LicenseListCallback.Dispose();
 
-            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
-            var packages = requester.ProcessLicenseList(licenseList, Configuration);
-            await requester.ProcessPackages(packages, Configuration);
+            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
+            var packages = requester.ProcessLicenseList(licenseList);
+            await requester.ProcessPackages(packages);
 
             await ApiClient.SendTokens(Payload, Configuration);
 
