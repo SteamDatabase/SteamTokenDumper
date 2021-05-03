@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 
 namespace SteamTokenDumper
@@ -6,19 +6,19 @@ namespace SteamTokenDumper
     internal sealed class PayloadDump
     {
         [JsonPropertyName("Apps")]
-        public Dictionary<string, string> Apps { get; }
+        public ImmutableSortedDictionary<string, string> Apps { get; }
 
         [JsonPropertyName("Packages")]
-        public Dictionary<string, string> Packages { get; }
+        public ImmutableSortedDictionary<string, string> Packages { get; }
 
         [JsonPropertyName("Depots")]
-        public Dictionary<string, string> Depots { get; }
+        public ImmutableSortedDictionary<string, string> Depots { get; }
 
         public PayloadDump(Payload payload)
         {
-            Apps = payload.Apps;
-            Packages = payload.Subs;
-            Depots = payload.Depots;
+            Apps = payload.Apps.ToImmutableSortedDictionary();
+            Packages = payload.Subs.ToImmutableSortedDictionary();
+            Depots = payload.Depots.ToImmutableSortedDictionary();
         }
     }
 }
