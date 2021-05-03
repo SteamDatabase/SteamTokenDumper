@@ -19,6 +19,7 @@ del SteamTokenDumper.zip
 rmdir /Q /S obj
 rmdir /Q /S bin
 dotnet publish -c Release --runtime win-x64 --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true
+bash -c "unix2dos bin/SteamTokenDumper/SteamTokenDumper.config.ini"
 bash -c "cd bin && zip -9r ../SteamTokenDumper.zip SteamTokenDumper/"
 
 echo.
@@ -29,8 +30,9 @@ echo.
 del SteamTokenDumper-linux.tar.gz
 rmdir /Q /S obj
 rmdir /Q /S bin
-dotnet publish -c Release --runtime linux-x64 /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true
-bash -c "env GZIP=-9 tar cvzf SteamTokenDumper-linux.tar.gz --owner=0 --group=0 -C bin/Release/linux-x64/publish/ SteamTokenDumper"
+dotnet publish -c Release --runtime linux-x64 --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true
+bash -c "dos2unix bin/SteamTokenDumper/SteamTokenDumper.config.ini"
+bash -c "tar -I 'gzip -9' -cvf SteamTokenDumper-linux.tar.gz --owner=0 --group=0 -C bin/SteamTokenDumper/ SteamTokenDumper SteamTokenDumper.config.ini"
 
 echo.
 echo :: FINALIZING
