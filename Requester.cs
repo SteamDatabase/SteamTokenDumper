@@ -23,7 +23,7 @@ namespace SteamTokenDumper
         public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList, Configuration config)
         {
             var packages = new List<SteamApps.PICSRequest>();
-            var skippedPackages = new List<uint>();
+            var skippedPackages = new HashSet<uint>();
 
             foreach (var license in licenseList.LicenseList)
             {
@@ -50,8 +50,6 @@ namespace SteamTokenDumper
 
             if (skippedPackages.Any())
             {
-                skippedPackages.Sort();
-
                 Console.WriteLine();
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 Console.WriteLine($"Skipped auto granted packages: {string.Join(", ", skippedPackages)}");
@@ -61,7 +59,7 @@ namespace SteamTokenDumper
             return packages;
         }
 
-        public async Task ProcessPackages(List<SteamApps.PICSRequest> packages)
+        public async Task ProcessPackages(List<SteamApps.PICSRequest> packages, Configuration config)
         {
             Console.WriteLine();
             Console.WriteLine($"You have {packages.Count} licenses ({packages.Count(x => x.AccessToken != 0)} of them have a token)");
@@ -69,7 +67,7 @@ namespace SteamTokenDumper
 
             try
             {
-                var apps = await RequestPackageInfo(packages);
+                var apps = await RequestPackageInfo(packages, config);
                 await Request(apps);
             }
             catch (Exception e)
@@ -81,9 +79,10 @@ namespace SteamTokenDumper
             }
         }
 
-        private async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
+        private async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests, Configuration config)
         {
             var apps = new HashSet<uint>();
+            var skippedApps = new HashSet<uint>();
 
             foreach (var chunk in subInfoRequests.Split(ItemsPerRequest))
             {
@@ -100,15 +99,32 @@ namespace SteamTokenDumper
                 {
                     foreach (var package in result.Packages.Values)
                     {
-                        foreach (var appid in package.KeyValues["appids"].Children)
+                        foreach (var id in package.KeyValues["appids"].Children)
                         {
-                            apps.Add(appid.AsUnsignedInteger());
+                            var appid = id.AsUnsignedInteger();
+
+                            if (config.SkipApps.Contains(appid))
+                            {
+                                skippedApps.Add(appid);
+                                continue;
+                            }
+
+                            apps.Add(appid);
                         }
                     }
                 }
 
                 ConsoleRewriteLine($"You own {apps.Count} apps");
             }
+
+            if (skippedApps.Any())
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"Skipped app ids: {string.Join(", ", skippedApps)}");
+                Console.ResetColor();
+            }
+
 
             Console.WriteLine();
             Console.WriteLine();

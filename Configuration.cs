@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace SteamTokenDumper
@@ -10,6 +12,7 @@ namespace SteamTokenDumper
         public bool SkipAutoGrant { get; private set; }
         public bool VerifyBeforeSubmit { get; private set; }
         public bool DumpPayload { get; private set; }
+        public HashSet<uint> SkipApps { get; } = new();
 
         public async Task Load()
         {
@@ -44,6 +47,21 @@ namespace SteamTokenDumper
                     case "DumpPayload":
                         DumpPayload = option[1] == "1";
                         break;
+                    case "SkipAppIds":
+                        var ids = option[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+                        foreach (var id in ids)
+                        {
+                            if (!uint.TryParse(id, out var appid))
+                            {
+                                await Console.Error.WriteLineAsync($"Id '{id}' in 'SkipAppIds' is not a positive integer.");
+                                continue;
+                            }
+
+                            SkipApps.Add(appid);
+                        }
+
+                        break;
                 }
             }
 
@@ -65,6 +83,14 @@ namespace SteamTokenDumper
             if (VerifyBeforeSubmit)
             {
                 Console.WriteLine("Will ask for confirmation before sending results.");
+            }
+
+            if (SkipApps.Any())
+            {
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"Will skip these appids: {string.Join(", ", SkipApps)}");
+                Console.ResetColor();
             }
         }
     }

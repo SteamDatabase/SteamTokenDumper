@@ -346,7 +346,7 @@ namespace SteamTokenDumper
                         AccessToken = token,
                         Public = false
                     }
-                });
+                }, Configuration);
 
                 await ApiClient.SendTokens(Payload, Configuration);
 
@@ -418,7 +418,7 @@ namespace SteamTokenDumper
 
             var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>());
             var packages = requester.ProcessLicenseList(licenseList, Configuration);
-            await requester.ProcessPackages(packages);
+            await requester.ProcessPackages(packages, Configuration);
 
             await ApiClient.SendTokens(Payload, Configuration);
 
