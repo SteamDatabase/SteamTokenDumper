@@ -117,6 +117,14 @@ namespace SteamTokenDumper
                 ConsoleRewriteLine($"You own {apps.Count} apps");
             }
 
+            foreach (var appid in config.SkipApps)
+            {
+                if (payload.Apps.Remove(appid.ToString()))
+                {
+                    skippedApps.Add(appid);
+                }
+            }
+
             if (skippedApps.Any())
             {
                 Console.WriteLine();
