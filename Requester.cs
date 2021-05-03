@@ -14,6 +14,8 @@ namespace SteamTokenDumper
         private readonly Payload payload;
         private readonly SteamApps steamApps;
         private readonly Configuration config;
+        private readonly HashSet<uint> skippedPackages = new();
+        private readonly HashSet<uint> skippedApps = new();
 
         public Requester(Payload payload, SteamApps steamApps, Configuration config)
         {
@@ -25,22 +27,22 @@ namespace SteamTokenDumper
         public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
         {
             var packages = new List<SteamApps.PICSRequest>();
-            var skippedPackages = new HashSet<uint>();
 
             foreach (var license in licenseList.LicenseList)
             {
-                if (config.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
-                {
-                    skippedPackages.Add(license.PackageID);
-                    continue;
-                }
-
                 packages.Add(new SteamApps.PICSRequest
                 {
                     ID = license.PackageID,
                     AccessToken = license.AccessToken,
                     Public = false
                 });
+
+                // Request autogrant packages so we can automatically skip all apps inside of it
+                if (config.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
+                {
+                    skippedPackages.Add(license.PackageID);
+                    continue;
+                }
 
                 if (license.AccessToken == 0)
                 {
@@ -84,7 +86,6 @@ namespace SteamTokenDumper
         private async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
         {
             var apps = new HashSet<uint>();
-            var skippedApps = new HashSet<uint>();
 
             foreach (var chunk in subInfoRequests.Split(ItemsPerRequest))
             {
@@ -101,9 +102,17 @@ namespace SteamTokenDumper
                 {
                     foreach (var package in result.Packages.Values)
                     {
+                        var skipAutoGrant = skippedPackages.Contains(package.ID);
+
                         foreach (var id in package.KeyValues["appids"].Children)
                         {
                             var appid = id.AsUnsignedInteger();
+
+                            if (skipAutoGrant)
+                            {
+                                skippedApps.Add(appid);
+                                continue;
+                            }
 
                             if (config.SkipApps.Contains(appid))
                             {
@@ -125,6 +134,12 @@ namespace SteamTokenDumper
                 {
                     skippedApps.Add(appid);
                 }
+            }
+
+            // Remove all apps that may have been received from other packages
+            foreach (var appid in skippedApps)
+            {
+                payload.Apps.Remove(appid.ToString());
             }
 
             if (skippedApps.Any())
@@ -178,7 +193,7 @@ namespace SteamTokenDumper
             }
 
             Console.WriteLine();
-            
+
             if (appInfoRequests.Count > 0)
             {
                 Console.WriteLine();
@@ -229,7 +244,7 @@ namespace SteamTokenDumper
 
                                 var dlcappid = depot["dlcappid"].AsUnsignedInteger();
 
-                                if (config.SkipApps.Contains(dlcappid))
+                                if (skippedApps.Contains(dlcappid))
                                 {
                                     continue;
                                 }
