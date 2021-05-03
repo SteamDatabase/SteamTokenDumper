@@ -66,17 +66,20 @@ namespace SteamTokenDumper
                 Console.ResetColor();
             }
 
-            try
+            if (!Configuration.SkipAutoGrant)
             {
-                SteamClientData.ReadFromSteamClient(Payload);
+                try
+                {
+                    SteamClientData.ReadFromSteamClient(Payload);
+                }
+                catch (Exception e)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    await Console.Error.WriteLineAsync(e.ToString());
+                    Console.ResetColor();
+                }
             }
-            catch (Exception e)
-            {
-                Console.ForegroundColor = ConsoleColor.Red;
-                await Console.Error.WriteLineAsync(e.ToString());
-                Console.ResetColor();
-            }
-            
+
             Console.WriteLine();
 
             if (loginKey != null)
