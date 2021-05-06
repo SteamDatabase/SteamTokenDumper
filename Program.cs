@@ -165,7 +165,11 @@ namespace SteamTokenDumper
             manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
             manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
             manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
-            manager.Subscribe<SteamUser.LoginKeyCallback>(OnLoginKey);
+
+            if (Configuration.RememberLogin)
+            {
+                manager.Subscribe<SteamUser.LoginKeyCallback>(OnLoginKey);
+            }
 
             LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
