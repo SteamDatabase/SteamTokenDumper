@@ -86,7 +86,7 @@ namespace SteamTokenDumper
                 Console.WriteLine(output);
                 Console.ResetColor();
                 Console.WriteLine();
-                
+
                 try
                 {
                     output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n".Replace("\r", "");

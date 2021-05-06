@@ -190,7 +190,7 @@ namespace SteamTokenDumper
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                var paths = new [] {".steam", ".steam/steam", ".steam/root", ".local/share/Steam"};
+                var paths = new[] { ".steam", ".steam/steam", ".steam/root", ".local/share/Steam" };
 
                 return paths
                     .Select(path => Path.Join(home, path))

@@ -24,7 +24,7 @@ namespace SteamTokenDumper
         private static string loginKey;
         private static string authCode;
         private static string twoFactorAuth;
-        
+
         private static readonly Configuration Configuration = new();
         private static readonly ApiClient ApiClient = new();
         private static readonly Payload Payload = new();
@@ -137,6 +137,21 @@ namespace SteamTokenDumper
 
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
+        }
+
+        private static void ReadCredentialsAgain()
+        {
+            do
+            {
+                Console.Write("Enter your Steam username: ");
+                user = ReadUserInput(true);
+            } while (string.IsNullOrEmpty(user));
+
+            do
+            {
+                Console.Write("Enter your Steam password: ");
+                pass = ReadUserInput();
+            } while (string.IsNullOrEmpty(pass));
         }
 
         private static void InitializeSteamKit()
@@ -283,7 +298,32 @@ namespace SteamTokenDumper
             {
                 Console.ForegroundColor = ConsoleColor.Red;
 
-                if (callback.Result == EResult.InvalidPassword)
+                if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
+                {
+                    Console.WriteLine("Steam is currently having issues, please try again later.");
+                    Console.ResetColor();
+                    isRunning = false;
+                    return;
+                }
+                else if (callback.Result == EResult.TwoFactorCodeMismatch)
+                {
+                    Console.WriteLine("You have entered an invalid two factor code.");
+                    Console.ResetColor();
+
+                    if (twoFactorAuth != null)
+                    {
+                        Console.Write("Please enter your 2 factor auth code from your authenticator app: ");
+                        twoFactorAuth = Console.ReadLine()?.Trim();
+                    }
+                    else
+                    {
+                        Console.Write("Please enter the auth code sent to your email: ");
+                        authCode = Console.ReadLine()?.Trim();
+                    }
+
+                    return;
+                }
+                else if (callback.Result == EResult.InvalidPassword)
                 {
                     if (Configuration.RememberLogin && loginKey != null)
                     {
@@ -303,10 +343,6 @@ namespace SteamTokenDumper
                         Console.WriteLine("You have entered an invalid username or password.");
                     }
                 }
-                else if (callback.Result == EResult.TwoFactorCodeMismatch)
-                {
-                    Console.WriteLine("You have entered an invalid two factor code.");
-                }
                 else
                 {
                     Console.WriteLine($"Unable to logon to Steam: {callback.Result} ({callback.ExtendedResult})");
@@ -314,7 +350,7 @@ namespace SteamTokenDumper
 
                 Console.ResetColor();
 
-                isRunning = false;
+                ReadCredentialsAgain();
 
                 return;
             }
@@ -405,7 +441,7 @@ namespace SteamTokenDumper
                 SentryFileHash = sentryHash
             });
         }
-        
+
         private static async void OnLoginKey(SteamUser.LoginKeyCallback callback)
         {
             await File.WriteAllTextAsync(RememberCredentialsFile, $"{user};{callback.LoginKey}");
