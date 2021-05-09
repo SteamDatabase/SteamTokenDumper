@@ -62,7 +62,7 @@ namespace SteamTokenDumper
             catch (Exception e)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                await Console.Error.WriteLineAsync(e.ToString());
+                await Console.Error.WriteLineAsync($"Failed to read config: {e.Message}");
                 Console.ResetColor();
             }
 
