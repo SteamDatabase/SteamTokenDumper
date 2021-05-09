@@ -17,6 +17,7 @@
     <RepositoryUrl>https://github.com/SteamDatabase/SteamTokenDumper</RepositoryUrl>
     <SignAssembly>true</SignAssembly>
     <AssemblyOriginatorKeyFile>SteamTokenDumper.snk</AssemblyOriginatorKeyFile>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SteamKit2" Version="2.4.0-Alpha.2" />

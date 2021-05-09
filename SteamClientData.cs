@@ -84,7 +84,7 @@ namespace SteamTokenDumper
 
                 if (token > 0)
                 {
-                    payload.Apps[appid.ToString()] = token.ToString();
+                    payload.Apps[appid.ToString(CultureInfo.InvariantCulture)] = token.ToString(CultureInfo.InvariantCulture);
                 }
 
                 fs.Position += 20 + 4;
@@ -131,7 +131,7 @@ namespace SteamTokenDumper
 
                 if (token > 0)
                 {
-                    payload.Subs[subid.ToString()] = token.ToString();
+                    payload.Subs[subid.ToString(CultureInfo.InvariantCulture)] = token.ToString(CultureInfo.InvariantCulture);
                 }
 
                 deserializer.Deserialize(fs);
@@ -151,10 +151,10 @@ namespace SteamTokenDumper
 
             // For some inexplicable reason these keys can have different capilizations
             var depots = data.Children
-                ?.FirstOrDefault(k => k.Name.Equals("software", StringComparison.InvariantCultureIgnoreCase))
-                ?.FirstOrDefault(k => k.Name.Equals("valve", StringComparison.InvariantCultureIgnoreCase))
-                ?.FirstOrDefault(k => k.Name.Equals("steam", StringComparison.InvariantCultureIgnoreCase))
-                ?.FirstOrDefault(k => k.Name.Equals("depots", StringComparison.InvariantCultureIgnoreCase));
+                ?.FirstOrDefault(k => k.Name.Equals("software", StringComparison.OrdinalIgnoreCase))
+                ?.FirstOrDefault(k => k.Name.Equals("valve", StringComparison.OrdinalIgnoreCase))
+                ?.FirstOrDefault(k => k.Name.Equals("steam", StringComparison.OrdinalIgnoreCase))
+                ?.FirstOrDefault(k => k.Name.Equals("depots", StringComparison.OrdinalIgnoreCase));
 
             if (depots == null)
             {
@@ -178,11 +178,11 @@ namespace SteamTokenDumper
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
+                using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
                           RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64)
                               .OpenSubKey("SOFTWARE\\Valve\\Steam");
 
-                if (key != null && key.GetValue("SteamPath") is string steamPath)
+                if (key?.GetValue("SteamPath") is string steamPath)
                 {
                     return steamPath;
                 }

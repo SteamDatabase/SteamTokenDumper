@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -77,7 +78,7 @@ namespace SteamTokenDumper
 
             try
             {
-                var content = new StringContent(postData, Encoding.UTF8, "application/json");
+                using var content = new StringContent(postData, Encoding.UTF8, "application/json");
                 var result = await HttpClient.PostAsync($"{Endpoint}/submit", content);
                 var output = await result.Content.ReadAsStringAsync();
                 output = output.Trim();
@@ -89,11 +90,11 @@ namespace SteamTokenDumper
 
                 try
                 {
-                    output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n".Replace("\r", "");
+                    output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n".Replace("\r", "", StringComparison.Ordinal);
 
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
-                        output = output.Replace("\n", "\r\n");
+                        output = output.Replace("\n", "\r\n", StringComparison.Ordinal);
                     }
 
                     await File.WriteAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
@@ -126,12 +127,12 @@ namespace SteamTokenDumper
 
                 var version = await result.Content.ReadAsStringAsync();
 
-                if (!version.StartsWith("version="))
+                if (!version.StartsWith("version=", StringComparison.Ordinal))
                 {
                     throw new InvalidDataException("Failed to get version.");
                 }
 
-                var versionInt = uint.Parse(version[8..]);
+                var versionInt = uint.Parse(version[8..], CultureInfo.InvariantCulture);
 
                 if (versionInt != Version)
                 {

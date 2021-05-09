@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using SteamKit2;
@@ -49,7 +50,7 @@ namespace SteamTokenDumper
                     continue;
                 }
 
-                payload.Subs[license.PackageID.ToString()] = license.AccessToken.ToString();
+                payload.Subs[license.PackageID.ToString(CultureInfo.InvariantCulture)] = license.AccessToken.ToString(CultureInfo.InvariantCulture);
             }
 
             if (skippedPackages.Any())
@@ -130,7 +131,7 @@ namespace SteamTokenDumper
 
             foreach (var appid in config.SkipApps)
             {
-                if (payload.Apps.Remove(appid.ToString()))
+                if (payload.Apps.Remove(appid.ToString(CultureInfo.InvariantCulture)))
                 {
                     skippedApps.Add(appid);
                 }
@@ -139,7 +140,7 @@ namespace SteamTokenDumper
             // Remove all apps that may have been received from other packages
             foreach (var appid in skippedApps)
             {
-                payload.Apps.Remove(appid.ToString());
+                payload.Apps.Remove(appid.ToString(CultureInfo.InvariantCulture));
             }
 
             if (skippedApps.Any())
@@ -180,7 +181,7 @@ namespace SteamTokenDumper
                 {
                     if (value > 0)
                     {
-                        payload.Apps[key.ToString()] = value.ToString();
+                        payload.Apps[key.ToString(CultureInfo.InvariantCulture)] = value.ToString(CultureInfo.InvariantCulture);
                     }
 
                     appInfoRequests.Add(new SteamApps.PICSRequest
@@ -269,7 +270,7 @@ namespace SteamTokenDumper
                     {
                         if (task.Result.Result == EResult.OK)
                         {
-                            payload.Depots[task.Result.DepotID.ToString()] = BitConverter.ToString(task.Result.DepotKey).Replace("-", "");
+                            payload.Depots[task.Result.DepotID.ToString(CultureInfo.InvariantCulture)] = BitConverter.ToString(task.Result.DepotKey).Replace("-", "", StringComparison.Ordinal);
                         }
                     }
                 }
