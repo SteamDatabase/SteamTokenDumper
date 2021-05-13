@@ -34,6 +34,8 @@ namespace SteamTokenDumper
 
         public static async Task Main()
         {
+            WindowsDisableConsoleQuickEdit.Disable();
+
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.WriteLine("[>] Read https://steamdb.info/tokendumper/ before using this");
