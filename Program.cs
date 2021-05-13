@@ -40,6 +40,8 @@ namespace SteamTokenDumper
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
+            Console.Title = "Steam token dumper for SteamDB";
+
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Blue;
             Console.WriteLine("[>] Read https://steamdb.info/tokendumper/ before using this");
