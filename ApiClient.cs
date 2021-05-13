@@ -21,7 +21,9 @@ namespace SteamTokenDumper
 
         public ApiClient()
         {
+#pragma warning disable CA5386 // Avoid hardcoding SecurityProtocolType value
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
+#pragma warning restore CA5386 // Avoid hardcoding SecurityProtocolType value
             HttpClient.Timeout = TimeSpan.FromMinutes(10);
             HttpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Version}");
         }
