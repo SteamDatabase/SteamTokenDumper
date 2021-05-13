@@ -179,8 +179,7 @@ namespace SteamTokenDumper
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
-                          RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64)
-                              .OpenSubKey("SOFTWARE\\Valve\\Steam");
+                                Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
 
                 if (key?.GetValue("SteamPath") is string steamPath)
                 {
