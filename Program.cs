@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -35,6 +36,9 @@ namespace SteamTokenDumper
         public static async Task Main()
         {
             WindowsDisableConsoleQuickEdit.Disable();
+
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Blue;
