@@ -339,6 +339,8 @@ namespace SteamTokenDumper
                 {
                     if (Configuration.RememberLogin && loginKey != null)
                     {
+                        loginKey = null;
+
                         Console.WriteLine("Stored credentials are invalid, credentials file has been deleted.");
 
                         try
