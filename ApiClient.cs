@@ -92,14 +92,14 @@ namespace SteamTokenDumper
 
                 try
                 {
-                    output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n".Replace("\r", "", StringComparison.Ordinal);
+                    output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n\n---\n\n".Replace("\r", "", StringComparison.Ordinal);
 
                     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                     {
                         output = output.Replace("\n", "\r\n", StringComparison.Ordinal);
                     }
 
-                    await File.WriteAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
+                    await File.AppendAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
                 }
                 catch (Exception)
                 {
