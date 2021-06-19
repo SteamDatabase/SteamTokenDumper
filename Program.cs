@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using SteamKit2;
 
 #pragma warning disable CA1031 // Do not catch general exception types
+[assembly: CLSCompliant(false)]
 namespace SteamTokenDumper
 {
     internal static class Program
