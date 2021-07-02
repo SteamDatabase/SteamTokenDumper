@@ -268,7 +268,7 @@ namespace SteamTokenDumper
             });
         }
 
-        private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
+        private static async void OnDisconnected(SteamClient.DisconnectedCallback callback)
         {
             if (Payload.SteamID != null)
             {
@@ -279,7 +279,9 @@ namespace SteamTokenDumper
                 return;
             }
 
-            Console.WriteLine("Disconnected from Steam, reconnecting...");
+            Console.WriteLine("Disconnected from Steam, reconnecting in five seconds...");
+
+            await Task.Delay(5000);
 
             steamClient.Connect();
         }
@@ -313,11 +315,7 @@ namespace SteamTokenDumper
 
                 if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
                 {
-                    Console.WriteLine("Steam is currently having issues, trying again in five seconds...");
-
-                    await Task.Delay(5);
-
-                    steamClient.Connect();
+                    Console.WriteLine($"Steam is currently having issues ({callback.Result})...");
 
                     return;
                 }
