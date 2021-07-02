@@ -313,9 +313,12 @@ namespace SteamTokenDumper
 
                 if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
                 {
-                    Console.WriteLine("Steam is currently having issues, please try again later.");
-                    Console.ResetColor();
-                    isRunning = false;
+                    Console.WriteLine("Steam is currently having issues, trying again in five seconds...");
+
+                    await Task.Delay(5);
+
+                    steamClient.Connect();
+
                     return;
                 }
                 else if (callback.Result == EResult.TwoFactorCodeMismatch)
