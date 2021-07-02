@@ -22,7 +22,7 @@ dotnet publish -c Release --runtime win-x64 --output bin/SteamTokenDumper /p:Pub
 copy release_license.txt bin\SteamTokenDumper\LICENSE.txt
 bash -c "unix2dos bin/SteamTokenDumper/SteamTokenDumper.config.ini"
 bash -c "unix2dos bin/SteamTokenDumper/LICENSE.txt"
-bash -c "cd bin && zip -9r ../SteamTokenDumper.zip SteamTokenDumper/"
+bash -c "cd bin && zip -9rj ../SteamTokenDumper.zip SteamTokenDumper/"
 
 echo.
 echo :: BUILDING LINUX
