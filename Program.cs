@@ -388,6 +388,8 @@ namespace SteamTokenDumper
 
             if (steamid.AccountType == EAccountType.AnonUser)
             {
+                Console.WriteLine("Logged on, requesting package for anonymous users...");
+
                 const uint ANONYMOUS_PACKAGE = 17906;
 
                 var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
@@ -411,7 +413,7 @@ namespace SteamTokenDumper
             }
             else
             {
-                Console.WriteLine("Waiting for licenses...");
+                Console.WriteLine("Logged on, waiting for licenses...");
             }
         }
 
