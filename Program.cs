@@ -311,17 +311,15 @@ namespace SteamTokenDumper
 
             if (callback.Result != EResult.OK)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-
                 if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"Steam is currently having issues ({callback.Result})...");
                     Console.ResetColor();
-
-                    return;
                 }
                 else if (callback.Result == EResult.TwoFactorCodeMismatch)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("You have entered an invalid two factor code.");
                     Console.ResetColor();
 
@@ -335,11 +333,11 @@ namespace SteamTokenDumper
                         Console.Write("Please enter the auth code sent to your email: ");
                         authCode = Console.ReadLine()?.Trim();
                     }
-
-                    return;
                 }
                 else if (callback.Result == EResult.InvalidPassword)
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
+
                     if (Configuration.RememberLogin && loginKey != null)
                     {
                         loginKey = null;
@@ -359,15 +357,19 @@ namespace SteamTokenDumper
                     {
                         Console.WriteLine("You have entered an invalid username or password.");
                     }
+
+                    Console.ResetColor();
+
+                    ReadCredentialsAgain();
                 }
                 else
                 {
+                    Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine($"Unable to logon to Steam: {callback.Result} ({callback.ExtendedResult})");
+                    Console.ResetColor();
+
+                    isRunning = false;
                 }
-
-                Console.ResetColor();
-
-                ReadCredentialsAgain();
 
                 return;
             }
