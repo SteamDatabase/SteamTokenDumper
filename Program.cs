@@ -316,6 +316,7 @@ namespace SteamTokenDumper
                 if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
                 {
                     Console.WriteLine($"Steam is currently having issues ({callback.Result})...");
+                    Console.ResetColor();
 
                     return;
                 }
