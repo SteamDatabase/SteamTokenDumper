@@ -431,9 +431,7 @@ namespace SteamTokenDumper
 
                 fileSize = (int)stream.Length;
 
-#pragma warning disable SYSLIB0021 // Type or member is obsolete
-                using var sha = new SHA1CryptoServiceProvider();
-#pragma warning restore SYSLIB0021 // Type or member is obsolete
+                using var sha = SHA1.Create();
                 sentryHash = sha.ComputeHash(stream);
             }
 
