@@ -31,12 +31,7 @@ namespace SteamTokenDumper
 
             foreach (var license in licenseList.LicenseList)
             {
-                packages.Add(new SteamApps.PICSRequest
-                {
-                    ID = license.PackageID,
-                    AccessToken = license.AccessToken,
-                    Public = false
-                });
+                packages.Add(new SteamApps.PICSRequest(license.PackageID, license.AccessToken));
 
                 // Request autogrant packages so we can automatically skip all apps inside of it
                 if (config.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
@@ -184,12 +179,7 @@ namespace SteamTokenDumper
                         payload.Apps[key.ToString(CultureInfo.InvariantCulture)] = value.ToString(CultureInfo.InvariantCulture);
                     }
 
-                    appInfoRequests.Add(new SteamApps.PICSRequest
-                    {
-                        ID = key,
-                        AccessToken = value,
-                        Public = false
-                    });
+                    appInfoRequests.Add(new SteamApps.PICSRequest(key, value));
                 }
             }
 

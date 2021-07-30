@@ -400,12 +400,7 @@ namespace SteamTokenDumper
 
                 await requester.ProcessPackages(new List<SteamApps.PICSRequest>
                 {
-                    new SteamApps.PICSRequest
-                    {
-                        ID = ANONYMOUS_PACKAGE,
-                        AccessToken = token,
-                        Public = false
-                    }
+                    new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
                 });
 
                 await ApiClient.SendTokens(Payload, Configuration);
