@@ -25,4 +25,9 @@ namespace SteamTokenDumper
         [JsonPropertyName("depots")]
         public Dictionary<string, string> Depots { get; } = new();
     }
+
+    [JsonSerializable(typeof(Payload))]
+    internal partial class PayloadJsonContext : JsonSerializerContext
+    {
+    }
 }

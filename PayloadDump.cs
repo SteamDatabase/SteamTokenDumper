@@ -21,4 +21,9 @@ namespace SteamTokenDumper
             Depots = payload.Depots.ToImmutableSortedDictionary();
         }
     }
+
+    [JsonSerializable(typeof(PayloadDump))]
+    internal partial class PayloadDumpJsonContext : JsonSerializerContext
+    {
+    }
 }

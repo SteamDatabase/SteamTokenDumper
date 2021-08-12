@@ -45,10 +45,12 @@ namespace SteamTokenDumper
 
                 try
                 {
-                    await File.WriteAllTextAsync(file, JsonSerializer.Serialize(payloadDump, new JsonSerializerOptions
+                    
+                    var json = JsonSerializer.SerializeToUtf8Bytes(payloadDump, new PayloadDumpJsonContext(new JsonSerializerOptions
                     {
                         WriteIndented = true,
-                    }));
+                    }).PayloadDump);
+                    await File.WriteAllBytesAsync(file, json);
 
                     Console.WriteLine($"Written payload dump to '{Path.GetFileName(file)}'. Modifying this file will not do anything.");
                 }
@@ -76,7 +78,7 @@ namespace SteamTokenDumper
             Console.WriteLine("Submitting tokens to SteamDB...");
             Console.WriteLine();
 
-            var postData = JsonSerializer.Serialize(payload);
+            var postData = JsonSerializer.Serialize(payload, PayloadJsonContext.Default.Payload);
 
             try
             {
