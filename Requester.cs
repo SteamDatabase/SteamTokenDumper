@@ -85,9 +85,31 @@ namespace SteamTokenDumper
 
             foreach (var chunk in subInfoRequests.Split(ItemsPerRequest))
             {
-                var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
-                infoTask.Timeout = Timeout;
-                var info = await infoTask;
+                AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet info;
+
+                try
+                {
+                    var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
+                    infoTask.Timeout = Timeout;
+                    info = await infoTask;
+                }
+                catch
+                {
+                    ConsoleRewriteLine($"Package info task got cancelled, trying again...");
+
+                    // If PICS job fails for some reason, try again and maybe it will work
+                    try
+                    {
+                        var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
+                        infoTask.Timeout = Timeout;
+                        info = await infoTask;
+                    }
+                    catch
+                    {
+                        ConsoleRewriteLine($"Package info task got cancelled again, skipping...");
+                        continue;
+                    }
+                }
 
                 if (info.Results == null)
                 {
@@ -162,9 +184,31 @@ namespace SteamTokenDumper
 
             foreach (var chunk in apps.Split(ItemsPerRequest))
             {
-                var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
-                tokensTask.Timeout = Timeout;
-                var tokens = await tokensTask;
+                SteamApps.PICSTokensCallback tokens;
+
+                try
+                {
+                    var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
+                    tokensTask.Timeout = Timeout;
+                    tokens = await tokensTask;
+                }
+                catch
+                {
+                    ConsoleRewriteLine($"App token task got cancelled, trying again...");
+
+                    // If PICS job fails for some reason, try again and maybe it will work
+                    try
+                    {
+                        var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
+                        tokensTask.Timeout = Timeout;
+                        tokens = await tokensTask;
+                    }
+                    catch
+                    {
+                        ConsoleRewriteLine($"App token task got cancelled again, skipping...");
+                        continue;
+                    }
+                }
 
                 tokensCount += tokens.AppTokens.Count;
                 tokensDeniedCount += tokens.AppTokensDenied.Count;
@@ -196,9 +240,31 @@ namespace SteamTokenDumper
                 {
                     ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - Waiting for appinfo...");
 
-                    var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
-                    appJob.Timeout = Timeout;
-                    var appInfo = await appJob;
+                    AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet appInfo;
+
+                    try
+                    {
+                        var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
+                        appJob.Timeout = Timeout;
+                        appInfo = await appJob;
+                    }
+                    catch
+                    {
+                        ConsoleRewriteLine($"App info task got cancelled, trying again...");
+
+                        // If PICS job fails for some reason, try again and maybe it will work
+                        try
+                        {
+                            var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
+                            appJob.Timeout = Timeout;
+                            appInfo = await appJob;
+                        }
+                        catch
+                        {
+                            ConsoleRewriteLine($"App info task got cancelled again, skipping...");
+                            continue;
+                        }
+                    }
 
                     if (appInfo.Results == null)
                     {
