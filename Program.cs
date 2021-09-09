@@ -302,7 +302,7 @@ namespace SteamTokenDumper
                 }
                 else
                 {
-                    Console.Write("Please enter the auth code sent to the email at {0}: ", callback.EmailDomain);
+                    Console.Write($"Please enter the auth code sent to the email at {callback.EmailDomain}");
                     authCode = Console.ReadLine()?.Trim();
                 }
 

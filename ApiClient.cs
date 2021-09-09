@@ -113,7 +113,7 @@ namespace SteamTokenDumper
             catch (Exception e)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.Error.WriteLine("Whoops: {0}", e.Message);
+                await Console.Error.WriteLineAsync($"Whoops, failed to submit tokens to SteamDB: {e}");
                 Console.ResetColor();
             }
 

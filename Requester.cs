@@ -320,7 +320,15 @@ namespace SteamTokenDumper
 
                     ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {currentTasks.Count} tasks...");
 
-                    await Task.WhenAll(currentTasks);
+                    try
+                    {
+                        await Task.WhenAll(currentTasks);
+                    }
+                    catch
+                    {
+                        ConsoleRewriteLine($"Requesting depot tokens failed, skipping...");
+                        continue;
+                    }
 
                     foreach (var task in currentTasks)
                     {
