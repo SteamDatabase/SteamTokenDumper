@@ -17,6 +17,7 @@ namespace SteamTokenDumper
         private readonly Configuration config;
         private readonly HashSet<uint> skippedPackages = new();
         private readonly HashSet<uint> skippedApps = new();
+        private bool SomeRequestFailed;
 
         public Requester(Payload payload, SteamApps steamApps, Configuration config)
         {
@@ -72,9 +73,24 @@ namespace SteamTokenDumper
             }
             catch (Exception e)
             {
+                SomeRequestFailed = true;
+
                 await Console.Error.WriteLineAsync();
                 Console.ForegroundColor = ConsoleColor.Red;
                 await Console.Error.WriteLineAsync(e.ToString());
+                Console.ResetColor();
+            }
+
+            if (SomeRequestFailed)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                await Console.Error.WriteLineAsync();
+                await Console.Error.WriteLineAsync("[!]");
+                await Console.Error.WriteLineAsync("[!] Some of the requests to Steam failed, which may have resulted in");
+                await Console.Error.WriteLineAsync("[!] some of the tokens or depot keys not being fetched.");
+                await Console.Error.WriteLineAsync("[!] You can try running the dumper again later.");
+                await Console.Error.WriteLineAsync("[!]");
+                await Console.Error.WriteLineAsync();
                 Console.ResetColor();
             }
         }
@@ -95,7 +111,7 @@ namespace SteamTokenDumper
                 }
                 catch
                 {
-                    ConsoleRewriteLine($"Package info task got cancelled, trying again...");
+                    ConsoleRewriteLine("Package info task got cancelled, trying again...");
 
                     // If PICS job fails for some reason, try again and maybe it will work
                     try
@@ -106,7 +122,9 @@ namespace SteamTokenDumper
                     }
                     catch
                     {
-                        ConsoleRewriteLine($"Package info task got cancelled again, skipping...");
+                        SomeRequestFailed = true;
+
+                        ConsoleRewriteLine("Package info task got cancelled again, skipping...");
                         continue;
                     }
                 }
@@ -168,7 +186,6 @@ namespace SteamTokenDumper
                 Console.ResetColor();
             }
 
-
             Console.WriteLine();
             Console.WriteLine();
 
@@ -194,7 +211,7 @@ namespace SteamTokenDumper
                 }
                 catch
                 {
-                    ConsoleRewriteLine($"App token task got cancelled, trying again...");
+                    ConsoleRewriteLine("App token task got cancelled, trying again...");
 
                     // If PICS job fails for some reason, try again and maybe it will work
                     try
@@ -205,7 +222,9 @@ namespace SteamTokenDumper
                     }
                     catch
                     {
-                        ConsoleRewriteLine($"App token task got cancelled again, skipping...");
+                        SomeRequestFailed = true;
+
+                        ConsoleRewriteLine("App token task got cancelled again, skipping...");
                         continue;
                     }
                 }
@@ -250,7 +269,7 @@ namespace SteamTokenDumper
                     }
                     catch
                     {
-                        ConsoleRewriteLine($"App info task got cancelled, trying again...");
+                        ConsoleRewriteLine("App info task got cancelled, trying again...");
 
                         // If PICS job fails for some reason, try again and maybe it will work
                         try
@@ -261,7 +280,9 @@ namespace SteamTokenDumper
                         }
                         catch
                         {
-                            ConsoleRewriteLine($"App info task got cancelled again, skipping...");
+                            SomeRequestFailed = true;
+
+                            ConsoleRewriteLine("App info task got cancelled again, skipping...");
                             continue;
                         }
                     }
@@ -326,12 +347,18 @@ namespace SteamTokenDumper
                     }
                     catch
                     {
-                        ConsoleRewriteLine($"Requesting depot tokens failed, skipping...");
-                        continue;
+                        SomeRequestFailed = true;
+
+                        ConsoleRewriteLine("One of the depot key requests failed, skipping...");
                     }
 
                     foreach (var task in currentTasks)
                     {
+                        if (task.Status != TaskStatus.RanToCompletion)
+                        {
+                            continue;
+                        }
+
                         if (task.Result.Result == EResult.OK)
                         {
                             payload.Depots[task.Result.DepotID.ToString(CultureInfo.InvariantCulture)] = BitConverter.ToString(task.Result.DepotKey).Replace("-", "", StringComparison.Ordinal);
