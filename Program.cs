@@ -136,8 +136,6 @@ namespace SteamTokenDumper
                 }
             }
 
-            ApiClient.Dispose();
-
             // Read any buffered keys so it doesn't auto exit
             while (Console.KeyAvailable)
             {
@@ -286,7 +284,7 @@ namespace SteamTokenDumper
             steamClient.Connect();
         }
 
-        private static async void OnLoggedOn(SteamUser.LoggedOnCallback callback)
+        private static void OnLoggedOn(SteamUser.LoggedOnCallback callback)
         {
             var isSteamGuard = callback.Result == EResult.AccountLogonDenied;
             var is2FA = callback.Result == EResult.AccountLoginDeniedNeedTwoFactor;
@@ -395,17 +393,20 @@ namespace SteamTokenDumper
 
                 var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
 
-                var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
-                tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
-
-                await requester.ProcessPackages(new List<SteamApps.PICSRequest>
+                Task.Run(async () =>
                 {
-                    new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
+                    var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
+                    tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
+
+                    await requester.ProcessPackages(new List<SteamApps.PICSRequest>
+                    {
+                        new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
+                    });
+
+                    await ApiClient.SendTokens(Payload, Configuration);
+
+                    steamUser.LogOff();
                 });
-
-                await ApiClient.SendTokens(Payload, Configuration);
-
-                steamUser.LogOff();
             }
             else
             {
@@ -467,17 +468,20 @@ namespace SteamTokenDumper
             steamUser.AcceptNewLoginKey(callback);
         }
 
-        private static async void OnLicenseList(SteamApps.LicenseListCallback licenseList)
+        private static void OnLicenseList(SteamApps.LicenseListCallback licenseList)
         {
             LicenseListCallback.Dispose();
 
-            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
-            var packages = requester.ProcessLicenseList(licenseList);
-            await requester.ProcessPackages(packages);
+            Task.Run(async () =>
+            {
+                var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
+                var packages = requester.ProcessLicenseList(licenseList);
+                await requester.ProcessPackages(packages);
 
-            await ApiClient.SendTokens(Payload, Configuration);
+                await ApiClient.SendTokens(Payload, Configuration);
 
-            steamUser.LogOff();
+                steamUser.LogOff();
+            });
         }
     }
 }
