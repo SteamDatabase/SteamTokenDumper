@@ -341,27 +341,23 @@ namespace SteamTokenDumper
 
                     ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {currentTasks.Count} tasks...");
 
-                    try
-                    {
-                        await Task.WhenAll(currentTasks);
-                    }
-                    catch
-                    {
-                        SomeRequestFailed = true;
-
-                        ConsoleRewriteLine("One of the depot key requests failed, skipping...");
-                    }
-
                     foreach (var task in currentTasks)
                     {
-                        if (task.Status != TaskStatus.RanToCompletion)
+                        try
                         {
-                            continue;
-                        }
+                            var result = await task;
 
-                        if (task.Result.Result == EResult.OK)
+                            if (result.Result == EResult.OK)
+                            {
+                                var key = BitConverter.ToString(result.DepotKey).Replace("-", "", StringComparison.Ordinal);
+                                payload.Depots[result.DepotID.ToString(CultureInfo.InvariantCulture)] = key;
+                            }
+                        }
+                        catch
                         {
-                            payload.Depots[task.Result.DepotID.ToString(CultureInfo.InvariantCulture)] = BitConverter.ToString(task.Result.DepotKey).Replace("-", "", StringComparison.Ordinal);
+                            SomeRequestFailed = true;
+
+                            ConsoleRewriteLine("One of the depot key requests failed, skipping...");
                         }
                     }
                 }
