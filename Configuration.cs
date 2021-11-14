@@ -12,6 +12,7 @@ namespace SteamTokenDumper
         public bool SkipAutoGrant { get; private set; }
         public bool VerifyBeforeSubmit { get; private set; }
         public bool DumpPayload { get; private set; }
+        public bool Debug { get; private set; }
         public HashSet<uint> SkipApps { get; } = new();
 
         public async Task Load()
@@ -46,6 +47,9 @@ namespace SteamTokenDumper
                         break;
                     case "DumpPayload":
                         DumpPayload = option[1] == "1";
+                        break;
+                    case "Debug":
+                        Debug = option[1] == "1";
                         break;
                     case "SkipAppIds":
                         var ids = option[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

@@ -163,7 +163,10 @@ namespace SteamTokenDumper
 
         private static void InitializeSteamKit()
         {
-            steamClient = new SteamClient();
+            DebugLog.AddListener(new SteamKitLogger());
+            DebugLog.Enabled = Configuration.Debug;
+
+            steamClient = new SteamClient("Dumper");
             manager = new CallbackManager(steamClient);
 
             steamUser = steamClient.GetHandler<SteamUser>();
