@@ -349,7 +349,7 @@ namespace SteamTokenDumper
 
                             if (result.Result == EResult.OK)
                             {
-                                var key = BitConverter.ToString(result.DepotKey).Replace("-", "", StringComparison.Ordinal);
+                                var key = Convert.ToHexString(result.DepotKey);
                                 payload.Depots[result.DepotID.ToString(CultureInfo.InvariantCulture)] = key;
                             }
                         }
