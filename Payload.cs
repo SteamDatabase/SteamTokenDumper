@@ -1,33 +1,32 @@
 ﻿using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace SteamTokenDumper
+namespace SteamTokenDumper;
+
+internal sealed class Payload
 {
-    internal sealed class Payload
-    {
-        [JsonPropertyName("v")]
-        // ReSharper disable once ReplaceAutoPropertyWithComputedProperty
-        public uint Version { get; } = ApiClient.Version;
+    [JsonPropertyName("v")]
+    // ReSharper disable once ReplaceAutoPropertyWithComputedProperty
+    public uint Version { get; } = ApiClient.Version;
 
-        [JsonPropertyName("token")]
-        // ReSharper disable once ReplaceAutoPropertyWithComputedProperty
-        public string Token { get; } = ApiClient.Token;
+    [JsonPropertyName("token")]
+    // ReSharper disable once ReplaceAutoPropertyWithComputedProperty
+    public string Token { get; } = ApiClient.Token;
 
-        [JsonPropertyName("steamid")]
-        public string SteamID { get; set; }
+    [JsonPropertyName("steamid")]
+    public string SteamID { get; set; }
 
-        [JsonPropertyName("apps")]
-        public Dictionary<string, string> Apps { get; } = new();
+    [JsonPropertyName("apps")]
+    public Dictionary<string, string> Apps { get; } = new();
 
-        [JsonPropertyName("subs")]
-        public Dictionary<string, string> Subs { get; } = new();
+    [JsonPropertyName("subs")]
+    public Dictionary<string, string> Subs { get; } = new();
 
-        [JsonPropertyName("depots")]
-        public Dictionary<string, string> Depots { get; } = new();
-    }
+    [JsonPropertyName("depots")]
+    public Dictionary<string, string> Depots { get; } = new();
+}
 
-    [JsonSerializable(typeof(Payload))]
-    internal partial class PayloadJsonContext : JsonSerializerContext
-    {
-    }
+[JsonSerializable(typeof(Payload))]
+internal partial class PayloadJsonContext : JsonSerializerContext
+{
 }

@@ -1,28 +1,27 @@
 ﻿using System.Collections.Generic;
 
-namespace SteamTokenDumper
+namespace SteamTokenDumper;
+
+internal static class Extensions
 {
-    internal static class Extensions
+    // https://codereview.stackexchange.com/a/90531
+    public static IEnumerable<List<T>> Split<T>(this IEnumerable<T> fullBatch, int chunkSize)
     {
-        // https://codereview.stackexchange.com/a/90531
-        public static IEnumerable<List<T>> Split<T>(this IEnumerable<T> fullBatch, int chunkSize)
+        var cellCounter = 0;
+        var chunk = new List<T>(chunkSize);
+
+        foreach (var element in fullBatch)
         {
-            var cellCounter = 0;
-            var chunk = new List<T>(chunkSize);
-
-            foreach (var element in fullBatch)
+            if (cellCounter++ == chunkSize)
             {
-                if (cellCounter++ == chunkSize)
-                {
-                    yield return chunk;
-                    chunk = new List<T>(chunkSize);
-                    cellCounter = 1;
-                }
-
-                chunk.Add(element);
+                yield return chunk;
+                chunk = new List<T>(chunkSize);
+                cellCounter = 1;
             }
 
-            yield return chunk;
+            chunk.Add(element);
         }
+
+        yield return chunk;
     }
 }

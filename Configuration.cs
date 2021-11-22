@@ -4,98 +4,97 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace SteamTokenDumper
+namespace SteamTokenDumper;
+
+internal class Configuration
 {
-    internal class Configuration
+    public bool RememberLogin { get; private set; }
+    public bool SkipAutoGrant { get; private set; }
+    public bool VerifyBeforeSubmit { get; private set; }
+    public bool DumpPayload { get; private set; }
+    public bool Debug { get; private set; }
+    public HashSet<uint> SkipApps { get; } = new();
+
+    public async Task Load()
     {
-        public bool RememberLogin { get; private set; }
-        public bool SkipAutoGrant { get; private set; }
-        public bool VerifyBeforeSubmit { get; private set; }
-        public bool DumpPayload { get; private set; }
-        public bool Debug { get; private set; }
-        public HashSet<uint> SkipApps { get; } = new();
+        var path = Path.Combine(Program.AppPath, "SteamTokenDumper.config.ini");
+        var lines = await File.ReadAllLinesAsync(path);
 
-        public async Task Load()
+        foreach (var line in lines)
         {
-            var path = Path.Combine(Program.AppPath, "SteamTokenDumper.config.ini");
-            var lines = await File.ReadAllLinesAsync(path);
-
-            foreach (var line in lines)
+            if (string.IsNullOrWhiteSpace(line) || line[0] == '#')
             {
-                if (string.IsNullOrWhiteSpace(line) || line[0] == '#')
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                var option = line.Split('=', 2, StringSplitOptions.TrimEntries);
+            var option = line.Split('=', 2, StringSplitOptions.TrimEntries);
 
-                if (option.Length != 2)
-                {
-                    continue;
-                }
+            if (option.Length != 2)
+            {
+                continue;
+            }
 
-                switch (option[0])
-                {
-                    case "RememberLogin":
-                        RememberLogin = option[1] == "1";
-                        break;
-                    case "SkipAutoGrant":
-                        SkipAutoGrant = option[1] == "1";
-                        break;
-                    case "VerifyBeforeSubmit":
-                        VerifyBeforeSubmit = option[1] == "1";
-                        break;
-                    case "DumpPayload":
-                        DumpPayload = option[1] == "1";
-                        break;
-                    case "Debug":
-                        Debug = option[1] == "1";
-                        break;
-                    case "SkipAppIds":
-                        var ids = option[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            switch (option[0])
+            {
+                case "RememberLogin":
+                    RememberLogin = option[1] == "1";
+                    break;
+                case "SkipAutoGrant":
+                    SkipAutoGrant = option[1] == "1";
+                    break;
+                case "VerifyBeforeSubmit":
+                    VerifyBeforeSubmit = option[1] == "1";
+                    break;
+                case "DumpPayload":
+                    DumpPayload = option[1] == "1";
+                    break;
+                case "Debug":
+                    Debug = option[1] == "1";
+                    break;
+                case "SkipAppIds":
+                    var ids = option[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-                        foreach (var id in ids)
+                    foreach (var id in ids)
+                    {
+                        if (!uint.TryParse(id, out var appid))
                         {
-                            if (!uint.TryParse(id, out var appid))
-                            {
-                                await Console.Error.WriteLineAsync($"Id '{id}' in 'SkipAppIds' is not a positive integer.");
-                                continue;
-                            }
-
-                            SkipApps.Add(appid);
+                            await Console.Error.WriteLineAsync($"Id '{id}' in 'SkipAppIds' is not a positive integer.");
+                            continue;
                         }
 
-                        break;
-                }
-            }
+                        SkipApps.Add(appid);
+                    }
 
-            if (RememberLogin)
-            {
-                Console.WriteLine("Will remember your login.");
+                    break;
             }
+        }
 
-            if (SkipAutoGrant)
-            {
-                Console.WriteLine("Will skip auto granted packages.");
-            }
+        if (RememberLogin)
+        {
+            Console.WriteLine("Will remember your login.");
+        }
 
-            if (DumpPayload)
-            {
-                Console.WriteLine("Will dump payload.");
-            }
+        if (SkipAutoGrant)
+        {
+            Console.WriteLine("Will skip auto granted packages.");
+        }
 
-            if (VerifyBeforeSubmit)
-            {
-                Console.WriteLine("Will ask for confirmation before sending results.");
-            }
+        if (DumpPayload)
+        {
+            Console.WriteLine("Will dump payload.");
+        }
 
-            if (SkipApps.Any())
-            {
-                Console.WriteLine();
-                Console.ForegroundColor = ConsoleColor.Yellow;
-                Console.WriteLine($"Will skip these appids: {string.Join(", ", SkipApps)}");
-                Console.ResetColor();
-            }
+        if (VerifyBeforeSubmit)
+        {
+            Console.WriteLine("Will ask for confirmation before sending results.");
+        }
+
+        if (SkipApps.Any())
+        {
+            Console.WriteLine();
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"Will skip these appids: {string.Join(", ", SkipApps)}");
+            Console.ResetColor();
         }
     }
 }

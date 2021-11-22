@@ -1,15 +1,14 @@
 ﻿using System;
 using SteamKit2;
 
-namespace SteamTokenDumper
+namespace SteamTokenDumper;
+
+internal class SteamKitLogger : IDebugListener
 {
-    internal class SteamKitLogger : IDebugListener
+    public void WriteLine(string category, string msg)
     {
-        public void WriteLine(string category, string msg)
-        {
-            Console.ForegroundColor = ConsoleColor.Magenta;
-            Console.WriteLine($"[{category}] {msg}");
-            Console.ResetColor();
-        }
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine($"[{category}] {msg}");
+        Console.ResetColor();
     }
 }
