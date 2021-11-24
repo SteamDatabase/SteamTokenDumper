@@ -121,7 +121,7 @@ internal class ApiClient : IDisposable
         Console.WriteLine();
     }
 
-    public async Task CheckVersion()
+    public async Task<bool> IsUpToDate()
     {
         try
         {
@@ -142,18 +142,24 @@ internal class ApiClient : IDisposable
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 await Console.Error.WriteLineAsync("[!] There is a new version of token dumper available.");
-                await Console.Error.WriteLineAsync("[!] Please download the new version before continuing.");
+                await Console.Error.WriteLineAsync("[!] Please download the new version.");
                 await Console.Error.WriteLineAsync();
                 Console.ResetColor();
+
+                return false;
             }
         }
         catch (Exception e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
             await Console.Error.WriteLineAsync($"[!] Update check failed: {e.Message}");
-            await Console.Error.WriteLineAsync("[!] Your submission will most likely fail if you continue with the dumping.");
+            await Console.Error.WriteLineAsync("[!] Your submission will most likely fail.");
             await Console.Error.WriteLineAsync();
             Console.ResetColor();
+
+            return false;
         }
+
+        return true;
     }
 }

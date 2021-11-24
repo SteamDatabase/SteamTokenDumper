@@ -79,7 +79,12 @@ internal static class Program
         SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
         RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
 
-        await ApiClient.CheckVersion();
+        if (!await ApiClient.IsUpToDate())
+        {
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+            return;
+        }
 
         Console.WriteLine("Take a look at the 'SteamTokenDumper.config.ini' file for possible options.");
 
