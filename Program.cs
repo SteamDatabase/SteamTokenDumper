@@ -46,8 +46,34 @@ internal static class Program
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Blue;
         Console.WriteLine("[>] Read https://steamdb.info/tokendumper/ before using this");
+        Console.WriteLine();
+        Console.BackgroundColor = ConsoleColor.Yellow;
+        Console.ForegroundColor = ConsoleColor.Black;
+        Console.WriteLine("[>] If you are in a closed or limited beta, have a non disclosure agreement, ");
+        Console.WriteLine("[>] or otherwise do not want to leak private information, do not use this program.");
         Console.ResetColor();
         Console.WriteLine();
+
+        ConsoleKey response;
+        do
+        {
+            Console.Write("Are you sure you want to continue? [Y/n] ");
+            response = Console.ReadKey().Key;
+            if (response != ConsoleKey.Enter)
+            {
+                Console.WriteLine();
+            }
+        }
+        while (response != ConsoleKey.Y && response != ConsoleKey.N);
+
+        Console.WriteLine();
+
+        if (response != ConsoleKey.Y)
+        {
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey();
+            return;
+        }
 
         AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
         SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
