@@ -197,6 +197,10 @@ internal static class Program
         DebugLog.AddListener(new SteamKitLogger());
         DebugLog.Enabled = Configuration.Debug;
 
+#if DEBUG
+        DebugLog.Enabled = true;
+#endif
+
         steamClient = new SteamClient("Dumper");
         manager = new CallbackManager(steamClient);
 
