@@ -24,6 +24,7 @@ internal class ApiClient : IDisposable
 #pragma warning disable CA5386 // Avoid hardcoding SecurityProtocolType value
         ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls13;
 #pragma warning restore CA5386 // Avoid hardcoding SecurityProtocolType value
+        HttpClient.DefaultRequestVersion = HttpVersion.Version30;
         HttpClient.Timeout = TimeSpan.FromMinutes(10);
         HttpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Version}");
     }
