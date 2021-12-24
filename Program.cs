@@ -54,21 +54,7 @@ internal static class Program
         Console.ResetColor();
         Console.WriteLine();
 
-        ConsoleKey response;
-        do
-        {
-            Console.Write("Are you sure you want to continue? [Y/n] ");
-            response = Console.ReadKey().Key;
-            if (response != ConsoleKey.Enter)
-            {
-                Console.WriteLine();
-            }
-        }
-        while (response != ConsoleKey.Y && response != ConsoleKey.N);
-
-        Console.WriteLine();
-
-        if (response != ConsoleKey.Y)
+        if (!CheckUserContinue())
         {
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
@@ -175,6 +161,24 @@ internal static class Program
 
         Console.WriteLine("Press any key to exit...");
         Console.ReadKey();
+    }
+
+    private static bool CheckUserContinue()
+    {
+        bool accepted;
+        bool cancel;
+
+        do
+        {
+            Console.Write("Are you sure you want to continue? [y/N] ");
+            var response = Console.ReadLine();
+
+            cancel = string.IsNullOrEmpty(response) || char.ToUpperInvariant(response[0]) == 'N';
+            accepted = !cancel && char.ToUpperInvariant(response[0]) == 'Y';
+        }
+        while (!cancel && !accepted);
+
+        return accepted;
     }
 
     private static void ReadCredentialsAgain()
