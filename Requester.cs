@@ -99,7 +99,7 @@ internal class Requester
     {
         var apps = new HashSet<uint>();
 
-        foreach (var chunk in subInfoRequests.Split(ItemsPerRequest))
+        foreach (var chunk in subInfoRequests.Chunk(ItemsPerRequest))
         {
             AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet info;
 
@@ -199,7 +199,7 @@ internal class Requester
         var tokensDeniedCount = 0;
         var tokensNonZeroCount = 0;
 
-        foreach (var chunk in apps.Split(ItemsPerRequest))
+        foreach (var chunk in apps.Chunk(ItemsPerRequest))
         {
             SteamApps.PICSTokensCallback tokens;
 
@@ -255,7 +255,7 @@ internal class Requester
             var loops = 0;
             var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
 
-            foreach (var chunk in appInfoRequests.Split(ItemsPerRequest))
+            foreach (var chunk in appInfoRequests.Chunk(ItemsPerRequest))
             {
                 ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - Waiting for appinfo...");
 
