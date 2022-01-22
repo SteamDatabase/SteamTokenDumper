@@ -342,7 +342,7 @@ internal static class Program
             }
             else
             {
-                Console.Write($"Please enter the auth code sent to the email at {callback.EmailDomain}");
+                Console.Write($"Please enter the auth code sent to the email at {callback.EmailDomain}: ");
                 authCode = Console.ReadLine()?.Trim();
             }
 
