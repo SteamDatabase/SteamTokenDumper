@@ -22,7 +22,7 @@ internal static class WindowsDisableConsoleQuickEdit
 
     internal static void Disable()
     {
-        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (!OperatingSystem.IsWindows())
         {
             return;
         }

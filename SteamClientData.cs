@@ -176,7 +176,7 @@ internal static class SteamClientData
 
     private static string GetSteamPath()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        if (OperatingSystem.IsWindows())
         {
             using var key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Valve\\Steam") ??
                             Registry.LocalMachine.OpenSubKey("SOFTWARE\\Valve\\Steam");
@@ -186,7 +186,7 @@ internal static class SteamClientData
                 return steamPath;
             }
         }
-        else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        else if (OperatingSystem.IsLinux())
         {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var paths = new[] { ".steam", ".steam/steam", ".steam/root", ".local/share/Steam" };

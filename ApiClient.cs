@@ -97,7 +97,7 @@ internal class ApiClient : IDisposable
             {
                 output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n\n---\n\n".Replace("\r", "", StringComparison.Ordinal);
 
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (OperatingSystem.IsWindows())
                 {
                     output = output.Replace("\n", "\r\n", StringComparison.Ordinal);
                 }
