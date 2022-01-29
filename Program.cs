@@ -54,6 +54,9 @@ internal static class Program
         Console.ResetColor();
         Console.WriteLine();
 
+        Console.WriteLine("[>] Take a look at the 'SteamTokenDumper.config.ini' file for possible options.");
+        Console.WriteLine();
+
         if (!CheckUserContinue())
         {
             Console.WriteLine("Press any key to exit...");
@@ -71,8 +74,6 @@ internal static class Program
             Console.ReadKey();
             return;
         }
-
-        Console.WriteLine("Take a look at the 'SteamTokenDumper.config.ini' file for possible options.");
 
         try
         {
