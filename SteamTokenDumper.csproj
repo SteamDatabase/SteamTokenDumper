@@ -22,7 +22,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SteamKit2" Version="2.4.1" />
-    <PackageReference Include="ValveKeyValue" Version="0.7.1" />
+    <PackageReference Include="ValveKeyValue" Version="0.8.0.139" />
   </ItemGroup>
   <ItemGroup>
     <None Update="SteamTokenDumper.config.ini">
