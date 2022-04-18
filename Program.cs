@@ -38,10 +38,14 @@ internal static class Program
     {
         WindowsDisableConsoleQuickEdit.Disable();
 
+        Console.Title = "Steam token dumper for SteamDB";
+
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
-        Console.Title = "Steam token dumper for SteamDB";
+        AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
+        SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
+        RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Blue;
@@ -57,40 +61,20 @@ internal static class Program
         Console.WriteLine("[>] Take a look at the 'SteamTokenDumper.config.ini' file for possible options.");
         Console.WriteLine();
 
-        if (!CheckUserContinue())
+        await ReadConfiguration();
+
+        if (Configuration.UserConsentBeforeRun && !CheckUserContinue())
         {
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
             return;
         }
-
-        AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
-        SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
-        RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
 
         if (!await ApiClient.IsUpToDate())
         {
             Console.WriteLine("Press any key to exit...");
             Console.ReadKey();
             return;
-        }
-
-        try
-        {
-            await Configuration.Load();
-
-            if (Configuration.RememberLogin && File.Exists(RememberCredentialsFile))
-            {
-                var credentials = (await File.ReadAllTextAsync(RememberCredentialsFile)).Split(';', 2);
-                user = credentials[0];
-                loginKey = credentials[1];
-            }
-        }
-        catch (Exception e)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Failed to read config: {e.Message}");
-            Console.ResetColor();
         }
 
         if (!Configuration.SkipAutoGrant)
@@ -162,6 +146,27 @@ internal static class Program
 
         Console.WriteLine("Press any key to exit...");
         Console.ReadKey();
+    }
+
+    private static async Task ReadConfiguration()
+    {
+        try
+        {
+            await Configuration.Load();
+
+            if (Configuration.RememberLogin && File.Exists(RememberCredentialsFile))
+            {
+                var credentials = (await File.ReadAllTextAsync(RememberCredentialsFile)).Split(';', 2);
+                user = credentials[0];
+                loginKey = credentials[1];
+            }
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            await Console.Error.WriteLineAsync($"Failed to read config: {e.Message}");
+            Console.ResetColor();
+        }
     }
 
     private static bool CheckUserContinue()

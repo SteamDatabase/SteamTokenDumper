@@ -10,7 +10,8 @@ internal class Configuration
 {
     public bool RememberLogin { get; private set; }
     public bool SkipAutoGrant { get; private set; }
-    public bool VerifyBeforeSubmit { get; private set; }
+    public bool VerifyBeforeSubmit { get; private set; } = true;
+    public bool UserConsentBeforeRun { get; private set; } = true;
     public bool DumpPayload { get; private set; }
     public bool Debug { get; private set; }
     public HashSet<uint> SkipApps { get; } = new();
@@ -41,6 +42,9 @@ internal class Configuration
                     break;
                 case "SkipAutoGrant":
                     SkipAutoGrant = option[1] == "1";
+                    break;
+                case "UserConsentBeforeRun":
+                    UserConsentBeforeRun = option[1] == "1";
                     break;
                 case "VerifyBeforeSubmit":
                     VerifyBeforeSubmit = option[1] == "1";
