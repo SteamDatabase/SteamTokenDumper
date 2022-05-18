@@ -244,6 +244,11 @@ internal class Requester
 
             ConsoleRewriteLine($"App tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
 
+            if (config.SkipDepotKeys)
+            {
+                continue;
+            }
+
             foreach (var (key, value) in tokens.AppTokens)
             {
                 if (value > 0)
