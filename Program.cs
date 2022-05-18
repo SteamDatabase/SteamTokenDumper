@@ -443,6 +443,8 @@ internal static class Program
 
         if (steamid.AccountType == EAccountType.AnonUser)
         {
+            isExiting = true; // No reconnect support for anonymous accounts
+
             Console.WriteLine("Logged on, requesting package for anonymous users...");
 
             const uint ANONYMOUS_PACKAGE = 17906;
@@ -456,7 +458,7 @@ internal static class Program
 
                 await requester.ProcessPackages(new List<SteamApps.PICSRequest>
                 {
-                        new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
+                    new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
                 });
 
                 await ApiClient.SendTokens(Payload, Configuration);
