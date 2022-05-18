@@ -320,7 +320,7 @@ internal static class Program
         {
             isRunning = false;
 
-            Console.WriteLine("Exiting...");
+            Console.WriteLine("Disconnected from Steam, exiting...");
 
             return;
         }
