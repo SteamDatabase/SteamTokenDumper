@@ -21,6 +21,7 @@ internal static class Program
     private static IDisposable LicenseListCallback;
 
     private static bool isRunning;
+    private static bool isExiting;
 
     private static string user;
     private static string pass;
@@ -34,6 +35,9 @@ internal static class Program
     private static string SentryHashFile;
     private static string RememberCredentialsFile;
     public static string AppPath { get; private set; }
+
+    public static bool IsDisconnected => !steamClient.IsConnected;
+    public static TaskCompletionSource<bool> ReconnectEvent { get; private set; } = new();
 
     public static async Task Main()
     {
@@ -317,7 +321,7 @@ internal static class Program
 
     private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
-        if (Payload.SteamID != null)
+        if (isExiting)
         {
             isRunning = false;
 
@@ -421,15 +425,18 @@ internal static class Program
             return;
         }
 
-        if (!Configuration.RememberLogin)
-        {
-            user = null;
-        }
-
-        pass = null;
-        loginKey = null;
         authCode = null;
         twoFactorAuth = null;
+
+        if (LicenseListCallback == null)
+        {
+            Console.WriteLine("Logged on, continuing...");
+
+            ReconnectEvent.SetResult(true);
+            ReconnectEvent = new();
+
+            return;
+        }
 
         var steamid = callback.ClientSteamID ?? new SteamID(0, EUniverse.Public, EAccountType.Invalid);
         Payload.SteamID = steamid.Render();
@@ -512,7 +519,7 @@ internal static class Program
     {
         File.WriteAllText(RememberCredentialsFile, $"{user};{callback.LoginKey}");
 
-        user = null;
+        loginKey = callback.LoginKey;
 
         steamUser.AcceptNewLoginKey(callback);
     }
@@ -520,14 +527,18 @@ internal static class Program
     private static void OnLicenseList(SteamApps.LicenseListCallback licenseList)
     {
         LicenseListCallback.Dispose();
+        LicenseListCallback = null;
+
+        var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
+        var packages = requester.ProcessLicenseList(licenseList);
 
         Task.Run(async () =>
         {
-            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
-            var packages = requester.ProcessLicenseList(licenseList);
             await requester.ProcessPackages(packages);
 
             await ApiClient.SendTokens(Payload, Configuration);
+
+            isExiting = true;
 
             steamUser.LogOff();
         });

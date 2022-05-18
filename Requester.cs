@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -111,6 +112,8 @@ internal class Requester
             }
             catch
             {
+                await AwaitReconnectIfDisconnected();
+
                 ConsoleRewriteLine("Package info task got cancelled, trying again...");
 
                 // If PICS job fails for some reason, try again and maybe it will work
@@ -122,6 +125,8 @@ internal class Requester
                 }
                 catch
                 {
+                    await AwaitReconnectIfDisconnected();
+
                     SomeRequestFailed = true;
 
                     ConsoleRewriteLine("Package info task got cancelled again, skipping...");
@@ -211,6 +216,8 @@ internal class Requester
             }
             catch
             {
+                await AwaitReconnectIfDisconnected();
+
                 ConsoleRewriteLine("App token task got cancelled, trying again...");
 
                 // If PICS job fails for some reason, try again and maybe it will work
@@ -222,6 +229,8 @@ internal class Requester
                 }
                 catch
                 {
+                    await AwaitReconnectIfDisconnected();
+
                     SomeRequestFailed = true;
 
                     ConsoleRewriteLine("App token task got cancelled again, skipping...");
@@ -269,6 +278,8 @@ internal class Requester
                 }
                 catch
                 {
+                    await AwaitReconnectIfDisconnected();
+
                     ConsoleRewriteLine("App info task got cancelled, trying again...");
 
                     // If PICS job fails for some reason, try again and maybe it will work
@@ -280,6 +291,8 @@ internal class Requester
                     }
                     catch
                     {
+                        await AwaitReconnectIfDisconnected();
+
                         SomeRequestFailed = true;
 
                         ConsoleRewriteLine("App info task got cancelled again, skipping...");
@@ -355,6 +368,8 @@ internal class Requester
                     }
                     catch
                     {
+                        await AwaitReconnectIfDisconnected();
+
                         SomeRequestFailed = true;
 
                         ConsoleRewriteLine("One of the depot key requests failed, skipping...");
@@ -372,6 +387,20 @@ internal class Requester
         Console.WriteLine($"App tokens: {payload.Apps.Count}");
         Console.WriteLine($"Depot keys: {payload.Depots.Count}");
         Console.ResetColor();
+    }
+
+    private static async Task AwaitReconnectIfDisconnected()
+    {
+        if (!Program.IsDisconnected)
+        {
+            return;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        await Console.Error.WriteLineAsync("[!] Disconnected from Steam while requesting, will continue after logging in again.");
+        Console.ResetColor();
+
+        await Program.ReconnectEvent.Task;
     }
 
     private static void ConsoleRewriteLine(string text)
