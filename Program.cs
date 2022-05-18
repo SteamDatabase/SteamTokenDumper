@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -314,7 +315,7 @@ internal static class Program
         });
     }
 
-    private static async void OnDisconnected(SteamClient.DisconnectedCallback callback)
+    private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
         if (Payload.SteamID != null)
         {
@@ -327,7 +328,7 @@ internal static class Program
 
         Console.WriteLine("Disconnected from Steam, reconnecting in five seconds...");
 
-        await Task.Delay(5000);
+        Thread.Sleep(5000);
 
         steamClient.Connect();
     }
@@ -507,9 +508,9 @@ internal static class Program
         });
     }
 
-    private static async void OnLoginKey(SteamUser.LoginKeyCallback callback)
+    private static void OnLoginKey(SteamUser.LoginKeyCallback callback)
     {
-        await File.WriteAllTextAsync(RememberCredentialsFile, $"{user};{callback.LoginKey}");
+        File.WriteAllText(RememberCredentialsFile, $"{user};{callback.LoginKey}");
 
         user = null;
 
