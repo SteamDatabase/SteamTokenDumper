@@ -28,6 +28,7 @@ internal static class Program
     private static string loginKey;
     private static string authCode;
     private static string twoFactorAuth;
+    private static int reconnectCount;
 
     private static readonly Configuration Configuration = new();
     private static readonly ApiClient ApiClient = new();
@@ -330,9 +331,22 @@ internal static class Program
             return;
         }
 
-        Console.WriteLine("Disconnected from Steam, reconnecting in five seconds...");
+        var sleep = ((1 << reconnectCount) * 1000);
 
-        Thread.Sleep(5000);
+        if (sleep < 5_000)
+        {
+            sleep = 5_000;
+        }
+        else if (sleep > 120_000)
+        {
+            sleep = 120_000;
+        }
+
+        sleep += Random.Shared.Next(1001);
+
+        Console.WriteLine($"Disconnected from Steam, reconnecting in {sleep / 1000} seconds...");
+
+        Thread.Sleep(sleep);
 
         steamClient.Connect();
     }
@@ -370,6 +384,8 @@ internal static class Program
             }
             else if (callback.Result == EResult.TwoFactorCodeMismatch)
             {
+                reconnectCount = 0;
+
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("You have entered an invalid two factor code.");
                 Console.ResetColor();
@@ -387,6 +403,8 @@ internal static class Program
             }
             else if (callback.Result == EResult.InvalidPassword)
             {
+                reconnectCount = 0;
+
                 Console.ForegroundColor = ConsoleColor.Red;
 
                 if (Configuration.RememberLogin && loginKey != null)
@@ -420,11 +438,13 @@ internal static class Program
                 Console.ResetColor();
 
                 isRunning = false;
+                isExiting = true;
             }
 
             return;
         }
 
+        reconnectCount = 0;
         authCode = null;
         twoFactorAuth = null;
 
