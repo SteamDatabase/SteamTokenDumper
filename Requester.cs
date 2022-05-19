@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -253,6 +255,7 @@ internal class Requester
 
             var loops = 0;
             var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
+            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = ItemsPerRequest };
 
             foreach (var chunk in appInfoRequests.Chunk(ItemsPerRequest))
             {
@@ -288,13 +291,11 @@ internal class Requester
                     continue;
                 }
 
-                var currentTasks = new List<Task<SteamApps.DepotKeyCallback>>();
+                var depotsToRequest = new HashSet<(uint DepotID, uint AppID)>();
 
                 foreach (var app in chunk)
                 {
-                    var job = steamApps.GetDepotDecryptionKey(app.ID, app.ID);
-                    job.Timeout = Timeout;
-                    currentTasks.Add(job.ToTask());
+                    depotsToRequest.Add((app.ID, app.ID));
                 }
 
                 foreach (var result in appInfo.Results)
@@ -328,35 +329,55 @@ internal class Requester
                                 continue;
                             }
 
-                            var job = steamApps.GetDepotDecryptionKey(depotid, app.ID);
-                            job.Timeout = Timeout;
-                            currentTasks.Add(job.ToTask());
+                            depotsToRequest.Add((depotid, app.ID));
                         }
                     }
                 }
 
-                ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {currentTasks.Count} tasks...");
+                ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for 0/{depotsToRequest.Count} keys...");
 
-                foreach (var task in currentTasks)
-                {
-                    try
+                var processedKeys = 0;
+                var depotKeys = new ConcurrentDictionary<string, string>();
+
+                await Parallel.ForEachAsync(
+                    depotsToRequest,
+                    parallelOptions,
+                    async (depot, token) =>
                     {
-                        var result = await task;
-
-                        if (result.Result == EResult.OK)
+                        try
                         {
-                            var key = Convert.ToHexString(result.DepotKey);
-                            payload.Depots[result.DepotID.ToString(CultureInfo.InvariantCulture)] = key;
+                            var job = steamApps.GetDepotDecryptionKey(depot.DepotID, depot.AppID);
+                            job.Timeout = Timeout;
+                            var result = await job;
+
+                            if (result.Result == EResult.OK)
+                            {
+                                var key = Convert.ToHexString(result.DepotKey);
+                                depotKeys[result.DepotID.ToString(CultureInfo.InvariantCulture)] = key;
+                            }
+
+                            var count = ++processedKeys;
+
+                            if (count % ItemsPerRequest == 0)
+                            {
+                                ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {count}/{depotsToRequest.Count} keys...");
+                            }
+                        }
+                        catch
+                        {
+                            SomeRequestFailed = true;
                         }
                     }
-                    catch
-                    {
-                        await AwaitReconnectIfDisconnected();
+                );
 
-                        SomeRequestFailed = true;
+                foreach (var (key, value) in depotKeys)
+                {
+                    payload.Depots[key] = value;
+                }
 
-                        ConsoleRewriteLine("One of the depot key requests failed, skipping...");
-                    }
+                if (!Program.IsConnected)
+                {
+                    await Program.ReconnectEvent.Task;
                 }
             }
 
@@ -380,6 +401,7 @@ internal class Requester
             return;
         }
 
+        Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Red;
         await Console.Error.WriteLineAsync("[!] Disconnected from Steam while requesting, will continue after logging in again.");
         Console.ResetColor();
