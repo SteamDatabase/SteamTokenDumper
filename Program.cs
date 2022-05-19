@@ -37,7 +37,7 @@ internal static class Program
     private static string RememberCredentialsFile;
     public static string AppPath { get; private set; }
 
-    public static bool IsDisconnected => !steamClient.IsConnected;
+    public static bool IsConnected => steamClient.IsConnected;
     public static TaskCompletionSource<bool> ReconnectEvent { get; private set; } = new();
 
     public static async Task Main()
@@ -170,7 +170,7 @@ internal static class Program
         catch (Exception e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Failed to read config: {e.Message}");
+            await Console.Error.WriteLineAsync($"Failed to read config: {e}");
             Console.ResetColor();
         }
     }
@@ -212,10 +212,6 @@ internal static class Program
     {
         DebugLog.AddListener(new SteamKitLogger());
         DebugLog.Enabled = Configuration.Debug;
-
-#if DEBUG
-        DebugLog.Enabled = true;
-#endif
 
         steamClient = new SteamClient("Dumper");
         manager = new CallbackManager(steamClient);
@@ -322,6 +318,8 @@ internal static class Program
 
     private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
+        Console.WriteLine(); // When disconnected after ConsoleRewriteLine
+
         if (isExiting)
         {
             isRunning = false;

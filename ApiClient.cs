@@ -57,7 +57,7 @@ internal class ApiClient : IDisposable
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to write payload dump: {e.Message}");
+                Console.WriteLine($"Failed to write payload dump: {e}");
             }
         }
 
@@ -153,7 +153,7 @@ internal class ApiClient : IDisposable
         catch (Exception e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"[!] Update check failed: {e.Message}");
+            await Console.Error.WriteLineAsync($"[!] Update check failed: {e}");
             await Console.Error.WriteLineAsync("[!] Your submission will most likely fail.");
             await Console.Error.WriteLineAsync();
             Console.ResetColor();

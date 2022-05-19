@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -102,36 +101,29 @@ internal class Requester
 
         foreach (var chunk in subInfoRequests.Chunk(ItemsPerRequest))
         {
-            AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet info;
+            AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet info = null;
 
-            try
+            for (var retry = 3; retry > 0; retry--)
             {
-                var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
-                infoTask.Timeout = Timeout;
-                info = await infoTask;
-            }
-            catch
-            {
-                await AwaitReconnectIfDisconnected();
-
-                ConsoleRewriteLine("Package info task got cancelled, trying again...");
-
-                // If PICS job fails for some reason, try again and maybe it will work
                 try
                 {
                     var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
                     infoTask.Timeout = Timeout;
                     info = await infoTask;
+                    break;
                 }
-                catch
+                catch (Exception e)
                 {
+                    ConsoleRewriteLine($"Package info task failed: {e.GetType()} {e.Message}");
+
                     await AwaitReconnectIfDisconnected();
-
-                    SomeRequestFailed = true;
-
-                    ConsoleRewriteLine("Package info task got cancelled again, skipping...");
-                    continue;
                 }
+            }
+
+            if (info == null)
+            {
+                SomeRequestFailed = true;
+                continue;
             }
 
             if (info.Results == null)
@@ -206,36 +198,29 @@ internal class Requester
 
         foreach (var chunk in apps.Chunk(ItemsPerRequest))
         {
-            SteamApps.PICSTokensCallback tokens;
+            SteamApps.PICSTokensCallback tokens = null;
 
-            try
+            for (var retry = 3; retry > 0; retry--)
             {
-                var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
-                tokensTask.Timeout = Timeout;
-                tokens = await tokensTask;
-            }
-            catch
-            {
-                await AwaitReconnectIfDisconnected();
-
-                ConsoleRewriteLine("App token task got cancelled, trying again...");
-
-                // If PICS job fails for some reason, try again and maybe it will work
                 try
                 {
                     var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
                     tokensTask.Timeout = Timeout;
                     tokens = await tokensTask;
+                    break;
                 }
-                catch
+                catch (Exception e)
                 {
+                    ConsoleRewriteLine($"App token task failed: {e.GetType()} {e.Message}");
+
                     await AwaitReconnectIfDisconnected();
-
-                    SomeRequestFailed = true;
-
-                    ConsoleRewriteLine("App token task got cancelled again, skipping...");
-                    continue;
                 }
+            }
+
+            if (tokens == null)
+            {
+                SomeRequestFailed = true;
+                continue;
             }
 
             tokensCount += tokens.AppTokens.Count;
@@ -273,36 +258,29 @@ internal class Requester
             {
                 ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - Waiting for appinfo...");
 
-                AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet appInfo;
+                AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet appInfo = null;
 
-                try
+                for (var retry = 3; retry > 0; retry--)
                 {
-                    var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
-                    appJob.Timeout = Timeout;
-                    appInfo = await appJob;
-                }
-                catch
-                {
-                    await AwaitReconnectIfDisconnected();
-
-                    ConsoleRewriteLine("App info task got cancelled, trying again...");
-
-                    // If PICS job fails for some reason, try again and maybe it will work
                     try
                     {
                         var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
                         appJob.Timeout = Timeout;
                         appInfo = await appJob;
+                        break;
                     }
-                    catch
+                    catch (Exception e)
                     {
+                        ConsoleRewriteLine($"App info task failed: {e.GetType()} {e.Message}");
+
                         await AwaitReconnectIfDisconnected();
-
-                        SomeRequestFailed = true;
-
-                        ConsoleRewriteLine("App info task got cancelled again, skipping...");
-                        continue;
                     }
+                }
+
+                if (appInfo == null)
+                {
+                    SomeRequestFailed = true;
+                    continue;
                 }
 
                 if (appInfo.Results == null)
@@ -396,8 +374,9 @@ internal class Requester
 
     private static async Task AwaitReconnectIfDisconnected()
     {
-        if (!Program.IsDisconnected)
+        if (Program.IsConnected)
         {
+            await Task.Delay(200 + Random.Shared.Next(1001));
             return;
         }
 
