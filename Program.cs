@@ -552,15 +552,20 @@ internal static class Program
         var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
         var packages = requester.ProcessLicenseList(licenseList);
 
-        Task.Run(async () =>
-        {
-            await requester.ProcessPackages(packages);
+        Task.Factory.StartNew(
+            async () =>
+            {
+                await requester.ProcessPackages(packages);
 
-            await ApiClient.SendTokens(Payload, Configuration);
+                await ApiClient.SendTokens(Payload, Configuration);
 
-            isExiting = true;
+                isExiting = true;
 
-            steamUser.LogOff();
-        });
+                steamUser.LogOff();
+            },
+            CancellationToken.None,
+            TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
+            TaskScheduler.Default
+        );
     }
 }
