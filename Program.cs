@@ -329,7 +329,8 @@ internal static class Program
             return;
         }
 
-        var sleep = ((1 << reconnectCount) * 1000);
+        var sleep = (1 << reconnectCount) * 1000;
+        reconnectCount++;
 
         if (sleep < 5_000)
         {
