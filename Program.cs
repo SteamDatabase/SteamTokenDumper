@@ -305,7 +305,7 @@ internal static class Program
 
         steamUser.LogOn(new SteamUser.LogOnDetails
         {
-            LoginID = 1337,
+            LoginID = 0x44_55_4D_50, // "DUMP"
             Username = user,
             Password = pass,
             LoginKey = loginKey,
