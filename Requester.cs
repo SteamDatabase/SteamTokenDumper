@@ -428,8 +428,15 @@ internal class Requester
         {
             foreach (var line in File.ReadLines(KnownDepotIdsPath))
             {
+                if (line.Length == 0 || line[0] == ';')
+                {
+                    continue;
+                }
+
                 knownDepotIds.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
+
+            Console.WriteLine($"You have sent {knownDepotIds.Count} depot keys before, they will be skipped.");
         }
         catch (Exception e)
         {
@@ -446,6 +453,10 @@ internal class Requester
         try
         {
             var data = new StringBuilder();
+
+            data.AppendLine("; This file stores depot ids which you have already sent keys for,");
+            data.AppendLine("; so they will not be requested again. Do not modify this file.");
+            data.AppendLine("");
 
             foreach (var depotId in knownDepotIds.OrderBy(x => x))
             {
