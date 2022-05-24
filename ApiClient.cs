@@ -12,7 +12,7 @@ namespace SteamTokenDumper;
 
 internal class ApiClient : IDisposable
 {
-    public const uint Version = 1652967420; // 2022-05-19
+    public const uint Version = 1653404460; // 2022-05-24
 
     public const string Token = "@STEAMDB_BUILD_TOKEN@";
     private const string Endpoint = "https://steamdb-token-dumper.xpaw.me";
