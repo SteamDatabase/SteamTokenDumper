@@ -110,6 +110,9 @@ internal class ApiClient : IDisposable
 
             result.EnsureSuccessStatusCode();
 
+            Console.WriteLine();
+            Console.WriteLine();
+
             return true;
         }
         catch (Exception e)
@@ -118,9 +121,6 @@ internal class ApiClient : IDisposable
             await Console.Error.WriteLineAsync($"Whoops, failed to submit tokens to SteamDB: {e}");
             Console.ResetColor();
         }
-
-        Console.WriteLine();
-        Console.WriteLine();
 
         return false;
     }
