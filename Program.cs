@@ -357,6 +357,8 @@ internal static class Program
 
         if (isSteamGuard || is2FA)
         {
+            reconnectCount = 0;
+
             Console.WriteLine("This account is SteamGuard protected!");
 
             if (is2FA)
