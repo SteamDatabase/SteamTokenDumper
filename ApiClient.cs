@@ -3,7 +3,6 @@ using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Http;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -35,7 +34,7 @@ internal class ApiClient : IDisposable
         HttpClient = null;
     }
 
-    public async Task SendTokens(Payload payload, Configuration config)
+    public async Task<bool> SendTokens(Payload payload, Configuration config)
     {
         if (config.DumpPayload)
         {
@@ -110,6 +109,8 @@ internal class ApiClient : IDisposable
             }
 
             result.EnsureSuccessStatusCode();
+
+            return true;
         }
         catch (Exception e)
         {
@@ -120,6 +121,8 @@ internal class ApiClient : IDisposable
 
         Console.WriteLine();
         Console.WriteLine();
+
+        return false;
     }
 
     public async Task<bool> IsUpToDate()

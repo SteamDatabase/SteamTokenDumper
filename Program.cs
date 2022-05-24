@@ -475,14 +475,10 @@ internal static class Program
                 var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
                 tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
 
-                await requester.ProcessPackages(new List<SteamApps.PICSRequest>
+                await DoRequest(requester, new List<SteamApps.PICSRequest>
                 {
                     new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
                 });
-
-                await ApiClient.SendTokens(Payload, Configuration);
-
-                steamUser.LogOff();
             });
         }
         else
@@ -554,19 +550,26 @@ internal static class Program
         var packages = requester.ProcessLicenseList(licenseList);
 
         Task.Factory.StartNew(
-            async () =>
-            {
-                await requester.ProcessPackages(packages);
-
-                await ApiClient.SendTokens(Payload, Configuration);
-
-                isExiting = true;
-
-                steamUser.LogOff();
-            },
+            async () => await DoRequest(requester, packages),
             CancellationToken.None,
             TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
             TaskScheduler.Default
         );
+    }
+
+    private static async Task DoRequest(Requester requester, List<SteamApps.PICSRequest> packages)
+    {
+        await requester.ProcessPackages(packages);
+
+        var success = await ApiClient.SendTokens(Payload, Configuration);
+
+        if (success)
+        {
+            await requester.SaveKnownDepotIds();
+        }
+
+        isExiting = true;
+
+        steamUser.LogOff();
     }
 }

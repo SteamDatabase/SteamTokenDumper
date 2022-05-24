@@ -14,7 +14,6 @@ internal class Configuration
     public bool UserConsentBeforeRun { get; private set; } = true;
     public bool DumpPayload { get; private set; }
     public bool Debug { get; private set; }
-    public bool SkipDepotKeys { get; private set; }
     public HashSet<uint> SkipApps { get; } = new();
 
     public async Task Load()
@@ -24,7 +23,7 @@ internal class Configuration
 
         foreach (var line in lines)
         {
-            if (string.IsNullOrWhiteSpace(line) || line[0] == '#')
+            if (string.IsNullOrWhiteSpace(line) || line[0] == ';')
             {
                 continue;
             }
@@ -56,9 +55,6 @@ internal class Configuration
                 case "Debug":
                     Debug = option[1] == "1";
                     break;
-                case "SkipDepotKeys":
-                    SkipDepotKeys = option[1] == "1";
-                    break;
                 case "SkipAppIds":
                     var ids = option[1].Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
@@ -73,6 +69,9 @@ internal class Configuration
                         SkipApps.Add(appid);
                     }
 
+                    break;
+                default:
+                    await Console.Error.WriteLineAsync($"Unknown option '{option[0]}'");
                     break;
             }
         }

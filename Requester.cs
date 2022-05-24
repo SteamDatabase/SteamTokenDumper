@@ -2,8 +2,9 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Threading;
+using System.Text;
 using System.Threading.Tasks;
 using SteamKit2;
 
@@ -14,18 +15,22 @@ internal class Requester
 {
     private const int ItemsPerRequest = 200;
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);
+    private bool SomeRequestFailed;
     private readonly Payload payload;
     private readonly SteamApps steamApps;
     private readonly Configuration config;
     private readonly HashSet<uint> skippedPackages = new();
     private readonly HashSet<uint> skippedApps = new();
-    private bool SomeRequestFailed;
+    private readonly HashSet<uint> knownDepotIds;
+    private readonly string KnownDepotIdsPath = Path.Combine(Program.AppPath, "SteamTokenDumper.depots.txt");
 
     public Requester(Payload payload, SteamApps steamApps, Configuration config)
     {
         this.payload = payload;
         this.steamApps = steamApps;
         this.config = config;
+
+        knownDepotIds = LoadKnownDepotIds();
     }
 
     public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
@@ -231,11 +236,6 @@ internal class Requester
 
             ConsoleRewriteLine($"App tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
 
-            if (config.SkipDepotKeys)
-            {
-                continue;
-            }
-
             foreach (var (key, value) in tokens.AppTokens)
             {
                 if (value > 0)
@@ -256,6 +256,8 @@ internal class Requester
             var loops = 0;
             var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = ItemsPerRequest };
+            var alreadySeen = new HashSet<uint>();
+            var depotsRequested = 0;
 
             foreach (var chunk in appInfoRequests.Chunk(ItemsPerRequest))
             {
@@ -295,7 +297,10 @@ internal class Requester
 
                 foreach (var app in chunk)
                 {
-                    depotsToRequest.Add((app.ID, app.ID));
+                    if (!knownDepotIds.Contains(app.ID) && !alreadySeen.Contains(app.ID))
+                    {
+                        depotsToRequest.Add((app.ID, app.ID));
+                    }
                 }
 
                 foreach (var result in appInfo.Results)
@@ -324,7 +329,12 @@ internal class Requester
                                 continue;
                             }
 
-                            if (payload.Depots.ContainsKey(depot.Name!))
+                            if (knownDepotIds.Contains(depotid))
+                            {
+                                continue;
+                            }
+
+                            if (alreadySeen.Contains(depotid))
                             {
                                 continue;
                             }
@@ -337,7 +347,8 @@ internal class Requester
                 ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for 0/{depotsToRequest.Count} keys...");
 
                 var processedKeys = 0;
-                var depotKeys = new ConcurrentDictionary<string, string>();
+                var depotKeys = new ConcurrentDictionary<uint, string>();
+                depotsRequested += depotsToRequest.Count;
 
                 await Parallel.ForEachAsync(
                     depotsToRequest,
@@ -353,26 +364,37 @@ internal class Requester
                             if (result.Result == EResult.OK)
                             {
                                 var key = Convert.ToHexString(result.DepotKey);
-                                depotKeys[result.DepotID.ToString(CultureInfo.InvariantCulture)] = key;
+                                depotKeys[result.DepotID] = key;
                             }
-
-                            var count = ++processedKeys;
-
-                            if (count % ItemsPerRequest == 0)
+                            else
                             {
-                                ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {count}/{depotsToRequest.Count} keys...");
+                                depotKeys[result.DepotID] = null;
                             }
                         }
                         catch
                         {
                             SomeRequestFailed = true;
                         }
+
+                        var count = ++processedKeys;
+
+                        if (count % ItemsPerRequest == 0)
+                        {
+                            ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {count}/{depotsToRequest.Count} keys...");
+                        }
                     }
                 );
 
                 foreach (var (key, value) in depotKeys)
                 {
-                    payload.Depots[key] = value;
+                    if (value == null)
+                    {
+                        alreadySeen.Add(key);
+                        continue;
+                    }
+
+                    payload.Depots[key.ToString(CultureInfo.InvariantCulture)] = value;
+                    knownDepotIds.Add(key);
                 }
 
                 if (!Program.IsConnected)
@@ -381,7 +403,7 @@ internal class Requester
                 }
             }
 
-            appInfoRequests.Clear();
+            ConsoleRewriteLine($"{total} app info requests done, {depotsRequested} depot keys requested");
         }
 
         Console.WriteLine();
@@ -391,6 +413,53 @@ internal class Requester
         Console.WriteLine($"App tokens: {payload.Apps.Count}");
         Console.WriteLine($"Depot keys: {payload.Depots.Count}");
         Console.ResetColor();
+    }
+
+    private HashSet<uint> LoadKnownDepotIds()
+    {
+        var knownDepotIds = new HashSet<uint>();
+
+        if (!File.Exists(KnownDepotIdsPath))
+        {
+            return knownDepotIds;
+        }
+
+        try
+        {
+            foreach (var line in File.ReadLines(KnownDepotIdsPath))
+            {
+                knownDepotIds.Add(uint.Parse(line, CultureInfo.InvariantCulture));
+            }
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.Error.WriteLine($"[!] Failed to load known depot ids: {e.Message}");
+            Console.ResetColor();
+        }
+
+        return knownDepotIds;
+    }
+
+    public async Task SaveKnownDepotIds()
+    {
+        try
+        {
+            var data = new StringBuilder();
+
+            foreach (var depotId in knownDepotIds.OrderBy(x => x))
+            {
+                data.AppendLine(depotId.ToString(CultureInfo.InvariantCulture));
+            }
+
+            await File.WriteAllTextAsync(KnownDepotIdsPath, data.ToString());
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            await Console.Error.WriteLineAsync($"[!] Failed to save known depot ids: {e.Message}");
+            Console.ResetColor();
+        }
     }
 
     private static async Task AwaitReconnectIfDisconnected()
