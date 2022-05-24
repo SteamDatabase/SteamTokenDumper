@@ -75,8 +75,8 @@ internal class Requester
 
         try
         {
-            var apps = await RequestPackageInfo(packages);
-            await Request(apps);
+            var (apps, depots) = await RequestPackageInfo(packages);
+            await Request(apps, depots);
         }
         catch (Exception e)
         {
@@ -102,9 +102,10 @@ internal class Requester
         }
     }
 
-    private async Task<HashSet<uint>> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
+    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
     {
         var apps = new HashSet<uint>();
+        var depots = new HashSet<uint>();
 
         foreach (var chunk in subInfoRequests.Chunk(ItemsPerRequest))
         {
@@ -162,10 +163,17 @@ internal class Requester
 
                         apps.Add(appid);
                     }
+
+                    foreach (var id in package.KeyValues["depotids"].Children)
+                    {
+                        var depotid = id.AsUnsignedInteger();
+
+                        depots.Add(depotid);
+                    }
                 }
             }
 
-            ConsoleRewriteLine($"You own {apps.Count} apps");
+            ConsoleRewriteLine($"You own {apps.Count} apps and {depots.Count} depots");
         }
 
         foreach (var appid in config.SkipApps)
@@ -193,17 +201,17 @@ internal class Requester
         Console.WriteLine();
         Console.WriteLine();
 
-        return apps;
+        return (apps, depots);
     }
 
-    private async Task Request(HashSet<uint> apps)
+    private async Task Request(HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
     {
         var appInfoRequests = new List<SteamApps.PICSRequest>();
         var tokensCount = 0;
         var tokensDeniedCount = 0;
         var tokensNonZeroCount = 0;
 
-        foreach (var chunk in apps.Chunk(ItemsPerRequest))
+        foreach (var chunk in ownedApps.Chunk(ItemsPerRequest))
         {
             SteamApps.PICSTokensCallback tokens = null;
 
@@ -325,6 +333,11 @@ internal class Requester
                             var dlcappid = depot["dlcappid"].AsUnsignedInteger();
 
                             if (skippedApps.Contains(dlcappid))
+                            {
+                                continue;
+                            }
+
+                            if (!ownedDepots.Contains(depotid) && !ownedApps.Contains(depotid))
                             {
                                 continue;
                             }
