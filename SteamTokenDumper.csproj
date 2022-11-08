@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <Deterministic>true</Deterministic>
     <ApplicationIcon>steamdb.ico</ApplicationIcon>
@@ -19,10 +19,11 @@
     <AssemblyOriginatorKeyFile>SteamTokenDumper.snk</AssemblyOriginatorKeyFile>
     <AnalysisMode>AllEnabledByDefault</AnalysisMode>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SteamKit2" Version="2.4.1" />
-    <PackageReference Include="ValveKeyValue" Version="0.8.0.139" />
+    <PackageReference Include="ValveKeyValue" Version="0.8.2.162" />
   </ItemGroup>
   <ItemGroup>
     <None Update="SteamTokenDumper.config.ini">
