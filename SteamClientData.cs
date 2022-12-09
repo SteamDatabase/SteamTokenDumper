@@ -59,9 +59,9 @@ internal static class SteamClientData
         using var reader = new BinaryReader(fs);
         var magic = reader.ReadUInt32();
 
-        if (magic != 0x07_56_44_27)
+        if (magic != 0x07_56_44_27 && magic != 0x07_56_44_28)
         {
-            throw new InvalidDataException($"Unknown appinfo.vdf magic: {magic}");
+            throw new InvalidDataException($"Unknown appinfo.vdf magic: {magic:X}");
         }
 
         reader.ReadUInt32(); // universe
@@ -77,7 +77,7 @@ internal static class SteamClientData
                 break;
             }
 
-            fs.Position += 4 + 4 + 4;
+            fs.Position += 4 + 4 + 4; // size + infoState + lastUpdated
 
             var token = reader.ReadUInt64();
 
@@ -86,7 +86,12 @@ internal static class SteamClientData
                 payload.Apps[appid.ToString(CultureInfo.InvariantCulture)] = token.ToString(CultureInfo.InvariantCulture);
             }
 
-            fs.Position += 20 + 4;
+            fs.Position += 20 + 4; // hash + changenumber
+
+            if (magic == 0x07_56_44_28)
+            {
+                fs.Position += 20; // another hash
+            }
 
             deserializer.Deserialize(fs);
         } while (true);
@@ -108,7 +113,7 @@ internal static class SteamClientData
 
         if (magic != 0x06_56_55_28)
         {
-            throw new InvalidDataException($"Unknown packageinfo.vdf magic: {magic}");
+            throw new InvalidDataException($"Unknown packageinfo.vdf magic: {magic:X}");
         }
 
         reader.ReadUInt32(); // universe
