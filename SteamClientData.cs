@@ -66,8 +66,6 @@ internal static class SteamClientData
 
         reader.ReadUInt32(); // universe
 
-        var deserializer = KVSerializer.Create(KVSerializationFormat.KeyValues1Binary);
-
         do
         {
             var appid = reader.ReadUInt32();
@@ -77,7 +75,9 @@ internal static class SteamClientData
                 break;
             }
 
-            fs.Position += 4 + 4 + 4; // size + infoState + lastUpdated
+            var nextOffset = reader.ReadUInt32() + fs.Position; // size
+
+            fs.Position += 4 + 4; // infoState + lastUpdated
 
             var token = reader.ReadUInt64();
 
@@ -86,14 +86,7 @@ internal static class SteamClientData
                 payload.Apps[appid.ToString(CultureInfo.InvariantCulture)] = token.ToString(CultureInfo.InvariantCulture);
             }
 
-            fs.Position += 20 + 4; // hash + changenumber
-
-            if (magic == 0x07_56_44_28)
-            {
-                fs.Position += 20; // another hash
-            }
-
-            deserializer.Deserialize(fs);
+            fs.Position = nextOffset;
         } while (true);
 
         Console.WriteLine($"Got {payload.Apps.Count} app tokens from appinfo.vdf");
