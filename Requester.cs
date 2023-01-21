@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -7,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using SteamKit2;
+using static SteamKit2.SteamApps;
 
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
@@ -33,13 +33,13 @@ internal class Requester
         knownDepotIds = LoadKnownDepotIds();
     }
 
-    public List<SteamApps.PICSRequest> ProcessLicenseList(SteamApps.LicenseListCallback licenseList)
+    public List<PICSRequest> ProcessLicenseList(LicenseListCallback licenseList)
     {
-        var packages = new List<SteamApps.PICSRequest>();
+        var packages = new List<PICSRequest>();
 
         foreach (var license in licenseList.LicenseList)
         {
-            packages.Add(new SteamApps.PICSRequest(license.PackageID, license.AccessToken));
+            packages.Add(new PICSRequest(license.PackageID, license.AccessToken));
 
             // Request autogrant packages so we can automatically skip all apps inside of it
             if (config.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
@@ -67,7 +67,7 @@ internal class Requester
         return packages;
     }
 
-    public async Task ProcessPackages(List<SteamApps.PICSRequest> packages)
+    public async Task ProcessPackages(List<PICSRequest> packages)
     {
         Console.WriteLine();
         Console.WriteLine($"You have {packages.Count} licenses ({packages.Count(x => x.AccessToken != 0)} of them have a token)");
@@ -102,20 +102,20 @@ internal class Requester
         }
     }
 
-    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(List<SteamApps.PICSRequest> subInfoRequests)
+    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(List<PICSRequest> subInfoRequests)
     {
         var apps = new HashSet<uint>();
         var depots = new HashSet<uint>();
 
         foreach (var chunk in subInfoRequests.Chunk(ItemsPerRequest))
         {
-            AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet info = null;
+            AsyncJobMultiple<PICSProductInfoCallback>.ResultSet info = null;
 
             for (var retry = 3; retry > 0; retry--)
             {
                 try
                 {
-                    var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<SteamApps.PICSRequest>(), chunk);
+                    var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<PICSRequest>(), chunk);
                     infoTask.Timeout = Timeout;
                     info = await infoTask;
                     break;
@@ -206,14 +206,14 @@ internal class Requester
 
     private async Task Request(HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
     {
-        var appInfoRequests = new List<SteamApps.PICSRequest>();
+        var appInfoRequests = new List<PICSRequest>();
         var tokensCount = 0;
         var tokensDeniedCount = 0;
         var tokensNonZeroCount = 0;
 
         foreach (var chunk in ownedApps.Chunk(ItemsPerRequest))
         {
-            SteamApps.PICSTokensCallback tokens = null;
+            PICSTokensCallback tokens = null;
 
             for (var retry = 3; retry > 0; retry--)
             {
@@ -251,7 +251,7 @@ internal class Requester
                     payload.Apps[key.ToString(CultureInfo.InvariantCulture)] = value.ToString(CultureInfo.InvariantCulture);
                 }
 
-                appInfoRequests.Add(new SteamApps.PICSRequest(key, value));
+                appInfoRequests.Add(new PICSRequest(key, value));
             }
         }
 
@@ -265,19 +265,51 @@ internal class Requester
             var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = ItemsPerRequest };
             var alreadySeen = new HashSet<uint>();
-            var depotsRequested = 0;
+            var depotKeysRequested = 0;
+            var depotKeysFailed = 0;
+            var allKeyRequests = new List<AsyncJob<DepotKeyCallback>>();
+
+            async Task CheckFinishedDepotKeyRequests()
+            {
+                var completedKeyRequests = allKeyRequests.Where(x => x.ToTask().IsCompleted).ToList();
+
+                foreach (var keyTask in completedKeyRequests)
+                {
+                    allKeyRequests.Remove(keyTask);
+
+                    try
+                    {
+                        var result = await keyTask;
+
+                        if (result.Result != EResult.OK)
+                        {
+                            depotKeysFailed++;
+                            alreadySeen.Add(result.DepotID);
+                            continue;
+                        }
+
+                        payload.Depots[result.DepotID.ToString(CultureInfo.InvariantCulture)] = Convert.ToHexString(result.DepotKey);
+                        knownDepotIds.Add(result.DepotID);
+                    }
+                    catch
+                    {
+                        depotKeysFailed++;
+                        SomeRequestFailed = true;
+                    }
+                }
+            };
 
             foreach (var chunk in appInfoRequests.Chunk(ItemsPerRequest))
             {
-                ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - Waiting for appinfo...");
+                ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - waiting for appinfo...");
 
-                AsyncJobMultiple<SteamApps.PICSProductInfoCallback>.ResultSet appInfo = null;
+                AsyncJobMultiple<PICSProductInfoCallback>.ResultSet appInfo = null;
 
                 for (var retry = 3; retry > 0; retry--)
                 {
                     try
                     {
-                        var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<SteamApps.PICSRequest>());
+                        var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<PICSRequest>());
                         appJob.Timeout = Timeout;
                         appInfo = await appJob;
                         break;
@@ -303,6 +335,7 @@ internal class Requester
 
                 var depotsToRequest = new HashSet<(uint DepotID, uint AppID)>();
 
+                /*
                 foreach (var app in chunk)
                 {
                     if (!knownDepotIds.Contains(app.ID) && !alreadySeen.Contains(app.ID))
@@ -310,6 +343,7 @@ internal class Requester
                         depotsToRequest.Add((app.ID, app.ID));
                     }
                 }
+                */
 
                 foreach (var result in appInfo.Results)
                 {
@@ -357,57 +391,26 @@ internal class Requester
                     }
                 }
 
-                ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for 0/{depotsToRequest.Count} keys...");
-
-                var processedKeys = 0;
-                var depotKeys = new ConcurrentDictionary<uint, string>();
-                depotsRequested += depotsToRequest.Count;
-
-                await Parallel.ForEachAsync(
-                    depotsToRequest,
-                    parallelOptions,
-                    async (depot, token) =>
-                    {
-                        try
-                        {
-                            var job = steamApps.GetDepotDecryptionKey(depot.DepotID, depot.AppID);
-                            job.Timeout = Timeout;
-                            var result = await job;
-
-                            if (result.Result == EResult.OK)
-                            {
-                                var key = Convert.ToHexString(result.DepotKey);
-                                depotKeys[result.DepotID] = key;
-                            }
-                            else
-                            {
-                                depotKeys[result.DepotID] = null;
-                            }
-                        }
-                        catch
-                        {
-                            SomeRequestFailed = true;
-                        }
-
-                        var count = ++processedKeys;
-
-                        if (count % ItemsPerRequest == 0)
-                        {
-                            ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys - Waiting for {count}/{depotsToRequest.Count} keys...");
-                        }
-                    }
-                );
-
-                foreach (var (key, value) in depotKeys)
+                if (depotsToRequest.Count > 0)
                 {
-                    if (value == null)
-                    {
-                        alreadySeen.Add(key);
-                        continue;
-                    }
+                    var sentKeyRequests = 0;
 
-                    payload.Depots[key.ToString(CultureInfo.InvariantCulture)] = value;
-                    knownDepotIds.Add(key);
+                    foreach (var (depotid, appid) in depotsToRequest)
+                    {
+                        var job = steamApps.GetDepotDecryptionKey(depotid, appid);
+                        job.Timeout = Timeout;
+                        allKeyRequests.Add(job);
+                        await Task.Delay(500);
+
+                        sentKeyRequests++;
+
+                        if (depotKeysRequested++ % 15 == 0)
+                        {
+                            await CheckFinishedDepotKeyRequests();
+
+                            ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys ({depotKeysRequested} requested, {depotKeysFailed} failed, {allKeyRequests.Count} waiting, {depotsToRequest.Count - sentKeyRequests} to send)");
+                        }
+                    }
                 }
 
                 if (!Program.IsConnected)
@@ -416,7 +419,23 @@ internal class Requester
                 }
             }
 
-            ConsoleRewriteLine($"{total} app info requests done, {depotsRequested} depot keys requested");
+            if (allKeyRequests.Count > 0)
+            {
+                ConsoleRewriteLine($"{total} app info requests done - {payload.Depots.Count} depot keys ({depotKeysRequested} requested, {depotKeysFailed} failed, {allKeyRequests.Count} waiting) - this might take a while...");
+
+                try
+                {
+                    await Task.WhenAll(allKeyRequests.Select(x => x.ToTask()));
+                }
+                catch
+                {
+                    SomeRequestFailed = true;
+                }
+
+                await CheckFinishedDepotKeyRequests();
+            }
+
+            ConsoleRewriteLine($"{total} app info requests done - {payload.Depots.Count} depot keys ({depotKeysRequested} requested, {depotKeysFailed} failed)");
         }
 
         Console.WriteLine();
@@ -426,6 +445,13 @@ internal class Requester
         Console.WriteLine($"App tokens: {payload.Apps.Count}");
         Console.WriteLine($"Depot keys: {payload.Depots.Count}");
         Console.ResetColor();
+    }
+
+    public void AddBackendKnownDepotIds(List<uint> list)
+    {
+        knownDepotIds.UnionWith(list);
+
+        Console.WriteLine($"Got {list.Count} depot ids from the backend to skip.");
     }
 
     private HashSet<uint> LoadKnownDepotIds()

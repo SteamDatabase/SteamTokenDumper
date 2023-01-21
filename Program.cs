@@ -561,6 +561,7 @@ internal static class Program
 
     private static async Task DoRequest(Requester requester, List<SteamApps.PICSRequest> packages)
     {
+        requester.AddBackendKnownDepotIds(await ApiClient.GetBackendKnownDepotIds());
         await requester.ProcessPackages(packages);
 
         var success = await ApiClient.SendTokens(Payload, Configuration);

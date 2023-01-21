@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -12,7 +13,7 @@ namespace SteamTokenDumper;
 
 internal class ApiClient : IDisposable
 {
-    public const uint Version = 1653404460; // 2022-05-24
+    public const uint Version = 1674333300; // 2023-01-21
 
     public const string Token = "@STEAMDB_BUILD_TOKEN@";
     private const string Endpoint = "https://steamdb-token-dumper.xpaw.me";
@@ -45,7 +46,6 @@ internal class ApiClient : IDisposable
 
             try
             {
-
                 var json = JsonSerializer.SerializeToUtf8Bytes(payloadDump, new PayloadDumpJsonContext(new JsonSerializerOptions
                 {
                     WriteIndented = true,
@@ -165,5 +165,42 @@ internal class ApiClient : IDisposable
         }
 
         return true;
+    }
+
+    public async Task<List<uint>> GetBackendKnownDepotIds()
+    {
+        try
+        {
+            var result = await HttpClient.GetAsync($"{Endpoint}/knowndepots.csv");
+
+            result.EnsureSuccessStatusCode();
+
+            using var reader = new StreamReader(await result.Content.ReadAsStreamAsync());
+
+            var count = await reader.ReadLineAsync();
+            var countInt = int.Parse(count);
+            var list = new List<uint>(countInt);
+
+            while (await reader.ReadLineAsync() is { } line)
+            {
+                if (line.Length == 0)
+                {
+                    continue;
+                }
+
+                list.Add(uint.Parse(line));
+            }
+
+            return list;
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            await Console.Error.WriteLineAsync($"[!] Failed to get list of depots to skip: {e}");
+            await Console.Error.WriteLineAsync();
+            Console.ResetColor();
+        }
+
+        return new List<uint>();
     }
 }
