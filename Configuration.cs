@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -60,7 +61,7 @@ internal sealed class Configuration
 
                     foreach (var id in ids)
                     {
-                        if (!uint.TryParse(id, out var appid))
+                        if (!uint.TryParse(id, CultureInfo.InvariantCulture, out var appid))
                         {
                             await Console.Error.WriteLineAsync($"Id '{id}' in 'SkipAppIds' is not a positive integer.");
                             continue;

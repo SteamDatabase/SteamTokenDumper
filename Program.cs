@@ -33,6 +33,7 @@ internal static class Program
     private static readonly Configuration Configuration = new();
     private static readonly ApiClient ApiClient = new();
     private static readonly Payload Payload = new();
+    private static KnownDepotIds KnownDepotIds;
     private static string SentryHashFile;
     private static string RememberCredentialsFile;
     public static string AppPath { get; private set; }
@@ -52,6 +53,7 @@ internal static class Program
         AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
         SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
         RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
+        KnownDepotIds = new();
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Blue;
@@ -83,11 +85,13 @@ internal static class Program
             return;
         }
 
+        await KnownDepotIds.Load(ApiClient);
+
         if (!Configuration.SkipAutoGrant)
         {
             try
             {
-                SteamClientData.ReadFromSteamClient(Payload);
+                SteamClientData.ReadFromSteamClient(Payload, KnownDepotIds);
             }
             catch (Exception e)
             {
@@ -470,7 +474,7 @@ internal static class Program
 
             const uint ANONYMOUS_PACKAGE = 17906;
 
-            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
+            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), KnownDepotIds, Configuration);
 
             Task.Run(async () =>
             {
@@ -548,7 +552,7 @@ internal static class Program
         LicenseListCallback.Dispose();
         LicenseListCallback = null;
 
-        var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), Configuration);
+        var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), KnownDepotIds, Configuration);
         var packages = requester.ProcessLicenseList(licenseList);
 
         Task.Factory.StartNew(
@@ -561,14 +565,13 @@ internal static class Program
 
     private static async Task DoRequest(Requester requester, List<SteamApps.PICSRequest> packages)
     {
-        requester.AddBackendKnownDepotIds(await ApiClient.GetBackendKnownDepotIds());
         await requester.ProcessPackages(packages);
 
         var success = await ApiClient.SendTokens(Payload, Configuration);
 
         if (success)
         {
-            await requester.SaveKnownDepotIds();
+            await KnownDepotIds.SaveKnownDepotIds();
         }
 
         isExiting = true;

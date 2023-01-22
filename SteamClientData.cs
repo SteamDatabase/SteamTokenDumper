@@ -10,7 +10,7 @@ namespace SteamTokenDumper;
 
 internal static class SteamClientData
 {
-    public static void ReadFromSteamClient(Payload payload)
+    public static void ReadFromSteamClient(Payload payload, KnownDepotIds knownDepotIds)
     {
         Console.WriteLine();
         Console.WriteLine("Trying to read tokens from Steam client files");
@@ -45,7 +45,7 @@ internal static class SteamClientData
 
         try
         {
-            ReadDepotKeys(payload, Path.Join(steamLocation, "config", "config.vdf"));
+            ReadDepotKeys(payload, knownDepotIds, Path.Join(steamLocation, "config", "config.vdf"));
         }
         catch (Exception e)
         {
@@ -137,7 +137,7 @@ internal static class SteamClientData
         Console.WriteLine($"Got {payload.Subs.Count} package tokens from packageinfo.vdf");
     }
 
-    private static void ReadDepotKeys(Payload payload, string filename)
+    private static void ReadDepotKeys(Payload payload, KnownDepotIds knownDepotIds, string filename)
     {
         KVObject data;
 
@@ -164,6 +164,13 @@ internal static class SteamClientData
 
             if (depotKey != null)
             {
+                var depotId = uint.Parse(depot.Name, CultureInfo.InvariantCulture);
+
+                if (knownDepotIds.List.Contains(depotId))
+                {
+                    continue;
+                }
+
                 payload.Depots[depot.Name] = depotKey.ToString(CultureInfo.InvariantCulture).ToUpperInvariant();
             }
         }

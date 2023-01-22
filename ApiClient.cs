@@ -178,7 +178,7 @@ internal sealed class ApiClient : IDisposable
             using var reader = new StreamReader(await result.Content.ReadAsStreamAsync());
 
             var count = await reader.ReadLineAsync();
-            var countInt = int.Parse(count);
+            var countInt = int.Parse(count, CultureInfo.InvariantCulture);
             var list = new List<uint>(countInt);
 
             while (await reader.ReadLineAsync() is { } line)
@@ -188,7 +188,7 @@ internal sealed class ApiClient : IDisposable
                     continue;
                 }
 
-                list.Add(uint.Parse(line));
+                list.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
 
             return list;

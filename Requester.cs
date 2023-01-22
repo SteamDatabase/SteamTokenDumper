@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using SteamKit2;
 using static SteamKit2.SteamApps;
@@ -18,19 +16,17 @@ internal sealed class Requester
     private bool SomeRequestFailed;
     private readonly Payload payload;
     private readonly SteamApps steamApps;
+    private readonly KnownDepotIds knownDepotIds;
     private readonly Configuration config;
     private readonly HashSet<uint> skippedPackages = new();
     private readonly HashSet<uint> skippedApps = new();
-    private readonly HashSet<uint> knownDepotIds;
-    private readonly string KnownDepotIdsPath = Path.Combine(Program.AppPath, "SteamTokenDumper.depots.txt");
 
-    public Requester(Payload payload, SteamApps steamApps, Configuration config)
+    public Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Configuration config)
     {
         this.payload = payload;
         this.steamApps = steamApps;
+        this.knownDepotIds = knownDepotIds;
         this.config = config;
-
-        knownDepotIds = LoadKnownDepotIds();
     }
 
     public List<PICSRequest> ProcessLicenseList(LicenseListCallback licenseList)
@@ -289,7 +285,7 @@ internal sealed class Requester
                         }
 
                         payload.Depots[result.DepotID.ToString(CultureInfo.InvariantCulture)] = Convert.ToHexString(result.DepotKey);
-                        knownDepotIds.Add(result.DepotID);
+                        knownDepotIds.List.Add(result.DepotID);
                     }
                     catch
                     {
@@ -359,7 +355,7 @@ internal sealed class Requester
                                 continue;
                             }
 
-                            if (!uint.TryParse(depot.Name, out var depotid))
+                            if (!uint.TryParse(depot.Name, CultureInfo.InvariantCulture, out var depotid))
                             {
                                 continue;
                             }
@@ -376,7 +372,7 @@ internal sealed class Requester
                                 continue;
                             }
 
-                            if (knownDepotIds.Contains(depotid))
+                            if (knownDepotIds.List.Contains(depotid))
                             {
                                 continue;
                             }
@@ -445,71 +441,6 @@ internal sealed class Requester
         Console.WriteLine($"App tokens: {payload.Apps.Count}");
         Console.WriteLine($"Depot keys: {payload.Depots.Count}");
         Console.ResetColor();
-    }
-
-    public void AddBackendKnownDepotIds(List<uint> list)
-    {
-        knownDepotIds.UnionWith(list);
-
-        Console.WriteLine($"Got {list.Count} depot ids from the backend to skip.");
-    }
-
-    private HashSet<uint> LoadKnownDepotIds()
-    {
-        var knownDepotIds = new HashSet<uint>();
-
-        if (!File.Exists(KnownDepotIdsPath))
-        {
-            return knownDepotIds;
-        }
-
-        try
-        {
-            foreach (var line in File.ReadLines(KnownDepotIdsPath))
-            {
-                if (line.Length == 0 || line[0] == ';')
-                {
-                    continue;
-                }
-
-                knownDepotIds.Add(uint.Parse(line, CultureInfo.InvariantCulture));
-            }
-
-            Console.WriteLine($"You have sent {knownDepotIds.Count} depot keys before, they will be skipped.");
-        }
-        catch (Exception e)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.Error.WriteLine($"[!] Failed to load known depot ids: {e.Message}");
-            Console.ResetColor();
-        }
-
-        return knownDepotIds;
-    }
-
-    public async Task SaveKnownDepotIds()
-    {
-        try
-        {
-            var data = new StringBuilder();
-
-            data.AppendLine("; This file stores depot ids which you have already sent keys for,");
-            data.AppendLine("; so they will not be requested again. Do not modify this file.");
-            data.AppendLine("");
-
-            foreach (var depotId in knownDepotIds.OrderBy(x => x))
-            {
-                data.AppendLine(depotId.ToString(CultureInfo.InvariantCulture));
-            }
-
-            await File.WriteAllTextAsync(KnownDepotIdsPath, data.ToString());
-        }
-        catch (Exception e)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"[!] Failed to save known depot ids: {e.Message}");
-            Console.ResetColor();
-        }
     }
 
     private static async Task AwaitReconnectIfDisconnected()
