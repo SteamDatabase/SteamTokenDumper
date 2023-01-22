@@ -27,6 +27,6 @@ internal sealed class Payload
 }
 
 [JsonSerializable(typeof(Payload))]
-internal partial class PayloadJsonContext : JsonSerializerContext
+internal sealed partial class PayloadJsonContext : JsonSerializerContext
 {
 }

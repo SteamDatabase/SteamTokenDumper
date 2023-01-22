@@ -11,7 +11,7 @@ using System.Threading.Tasks;
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
-internal class ApiClient : IDisposable
+internal sealed class ApiClient : IDisposable
 {
     public const uint Version = 1674333300; // 2023-01-21
 

@@ -11,7 +11,7 @@ using static SteamKit2.SteamApps;
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
-internal class Requester
+internal sealed class Requester
 {
     private const int ItemsPerRequest = 200;
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);

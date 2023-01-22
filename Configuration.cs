@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace SteamTokenDumper;
 
-internal class Configuration
+internal sealed class Configuration
 {
     public bool RememberLogin { get; private set; }
     public bool SkipAutoGrant { get; private set; }
