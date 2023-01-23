@@ -166,7 +166,7 @@ internal static class SteamClientData
             {
                 var depotId = uint.Parse(depot.Name, CultureInfo.InvariantCulture);
 
-                if (knownDepotIds.List.Contains(depotId))
+                if (knownDepotIds.PreviouslySent.Contains(depotId) || knownDepotIds.Server.Contains(depotId))
                 {
                     continue;
                 }

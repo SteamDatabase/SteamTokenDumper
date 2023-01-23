@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Net;
@@ -167,7 +168,7 @@ internal sealed class ApiClient : IDisposable
         return true;
     }
 
-    public async Task<List<uint>> GetBackendKnownDepotIds()
+    public async Task<ImmutableHashSet<uint>> GetBackendKnownDepotIds()
     {
         try
         {
@@ -179,7 +180,7 @@ internal sealed class ApiClient : IDisposable
 
             var count = await reader.ReadLineAsync();
             var countInt = int.Parse(count, CultureInfo.InvariantCulture);
-            var list = new List<uint>(countInt);
+            var list = new HashSet<uint>(countInt);
 
             while (await reader.ReadLineAsync() is { } line)
             {
@@ -191,7 +192,7 @@ internal sealed class ApiClient : IDisposable
                 list.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
 
-            return list;
+            return list.ToImmutableHashSet();
         }
         catch (Exception e)
         {
@@ -201,6 +202,6 @@ internal sealed class ApiClient : IDisposable
             Console.ResetColor();
         }
 
-        return new List<uint>();
+        return new HashSet<uint>().ToImmutableHashSet();
     }
 }

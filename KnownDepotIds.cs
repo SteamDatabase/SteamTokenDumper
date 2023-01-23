@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -11,18 +12,17 @@ namespace SteamTokenDumper;
 
 internal sealed class KnownDepotIds 
 {
-    public readonly HashSet<uint> List = new();
+    public readonly HashSet<uint> PreviouslySent = new();
+    public ImmutableHashSet<uint> Server;
     private readonly string KnownDepotIdsPath = Path.Combine(Program.AppPath, "SteamTokenDumper.depots.txt");
 
     public async Task Load(ApiClient apiClient)
     {
         await LoadKnownDepotIds();
 
-        var list = await apiClient.GetBackendKnownDepotIds();
+        Server = await apiClient.GetBackendKnownDepotIds();
 
-        List.UnionWith(list);
-
-        Console.WriteLine($"Got {list.Count} depot ids from the backend to skip.");
+        Console.WriteLine($"Got {Server.Count} depot ids from the backend to skip.");
     }
 
     private async Task LoadKnownDepotIds()
@@ -41,10 +41,10 @@ internal sealed class KnownDepotIds
                     continue;
                 }
 
-                List.Add(uint.Parse(line, CultureInfo.InvariantCulture));
+                PreviouslySent.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
 
-            Console.WriteLine($"You have sent {List.Count} depot keys before, they will be skipped.");
+            Console.WriteLine($"You have sent {PreviouslySent.Count} depot keys before, they will be skipped.");
         }
         catch (Exception e)
         {
@@ -64,7 +64,7 @@ internal sealed class KnownDepotIds
             data.AppendLine("; so they will not be requested again. Do not modify this file.");
             data.AppendLine("");
 
-            foreach (var depotId in List.OrderBy(x => x))
+            foreach (var depotId in PreviouslySent.OrderBy(x => x))
             {
                 data.AppendLine(depotId.ToString(CultureInfo.InvariantCulture));
             }

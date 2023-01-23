@@ -285,7 +285,7 @@ internal sealed class Requester
                         }
 
                         payload.Depots[result.DepotID.ToString(CultureInfo.InvariantCulture)] = Convert.ToHexString(result.DepotKey);
-                        knownDepotIds.List.Add(result.DepotID);
+                        knownDepotIds.PreviouslySent.Add(result.DepotID);
                     }
                     catch
                     {
@@ -372,7 +372,7 @@ internal sealed class Requester
                                 continue;
                             }
 
-                            if (knownDepotIds.List.Contains(depotid))
+                            if (knownDepotIds.PreviouslySent.Contains(depotid) || knownDepotIds.Server.Contains(depotid))
                             {
                                 continue;
                             }
