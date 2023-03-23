@@ -31,6 +31,7 @@ internal static class Program
 
     private static string pass;
     private static SavedCredentials savedCredentials = new();
+    private static AuthSession authSession;
     private static int reconnectCount;
 
     private static readonly Configuration Configuration = new();
@@ -373,43 +374,53 @@ internal static class Program
             return;
         }
 
-        AuthSession authSession = null;
-
-        if (savedCredentials.Username == "qr")
+        if (authSession == null)
         {
-            var qrAuthSession = await steamClient.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
+            if (savedCredentials.Username == "qr")
             {
-                DeviceFriendlyName = nameof(SteamTokenDumper),
-            });
+                var qrAuthSession = await steamClient.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
+                {
+                    DeviceFriendlyName = nameof(SteamTokenDumper),
+                });
 
-            qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession, true);
+                qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession, true);
 
-            DrawQRCode(qrAuthSession);
+                DrawQRCode(qrAuthSession);
 
-            authSession = qrAuthSession;
-        }
-        else if (savedCredentials.RefreshToken == null)
-        {
-            authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
+                authSession = qrAuthSession;
+            }
+            else if (savedCredentials.RefreshToken == null)
             {
-                Password = pass,
-                Username = savedCredentials.Username,
-                IsPersistentSession = Configuration.RememberLogin,
-                DeviceFriendlyName = nameof(SteamTokenDumper),
-                Authenticator = new UserConsoleAuthenticator(),
-            });
+                authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
+                {
+                    Password = pass,
+                    Username = savedCredentials.Username,
+                    IsPersistentSession = Configuration.RememberLogin,
+                    DeviceFriendlyName = nameof(SteamTokenDumper),
+                    Authenticator = new UserConsoleAuthenticator(),
+                });
+            }
         }
 
         if (authSession != null)
         {
-            var pollResponse = await authSession.PollingWaitForResultAsync();
+            try
+            {
+                var pollResponse = await authSession.PollingWaitForResultAsync();
 
-            savedCredentials.Username = pollResponse.AccountName;
-            savedCredentials.RefreshToken = pollResponse.RefreshToken;
+                savedCredentials.Username = pollResponse.AccountName;
+                savedCredentials.RefreshToken = pollResponse.RefreshToken;
+            }
+            catch (TaskCanceledException)
+            {
+                Console.WriteLine("Previous authentication polling was cancelled.");
+                return;
+            }
 
             await SaveCredentials();
         }
 
+        authSession = null;
         pass = null; // Password should not be needed
 
         Console.WriteLine("Logging in...");
@@ -431,12 +442,18 @@ internal static class Program
         using var qrCode = new AsciiQRCode(qrCodeData);
         var qrCodeAsAsciiArt = qrCode.GetLineByLineGraphic(1, drawQuietZones: false);
 
+        Console.WriteLine();
+
         if (rewrite)
         {
-            Console.SetCursorPosition(0, Console.CursorTop - qrCodeAsAsciiArt.Length - 1);
+            Console.WriteLine("QR code was refreshed, ignore the previous one.");
+        }
+        else
+        {
+            Console.WriteLine("Use the Steam Mobile App to sign in via QR code:");
         }
 
-        Console.WriteLine("Use the Steam Mobile App to sign in via QR code:");
+        Console.WriteLine();
         Console.WriteLine(string.Join("\n", qrCodeAsAsciiArt));
     }
 
