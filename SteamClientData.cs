@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Microsoft.Win32;
 using ValveKeyValue;
 
@@ -201,5 +202,37 @@ internal static class SteamClientData
         }
 
         return default;
+    }
+
+    public static string GetMachineGuid()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return null;
+        }
+
+        try
+        {
+            using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var localKey = baseKey.OpenSubKey(@"SOFTWARE\Microsoft\Cryptography");
+
+            if (localKey == null)
+            {
+                return null;
+            }
+
+            var guid = localKey.GetValue("MachineGuid");
+
+            if (guid == null)
+            {
+                return null;
+            }
+
+            return guid.ToString();
+        }
+        catch
+        {
+            return null;
+        }
     }
 }

@@ -26,7 +26,8 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="SteamKit2" Version="2.4.1" />
+    <PackageReference Include="QRCoder" Version="1.4.3" />
+    <PackageReference Include="SteamKit2" Version="2.5.0-Beta.1" />
     <PackageReference Include="ValveKeyValue" Version="0.8.2.162" />
   </ItemGroup>
   <ItemGroup>

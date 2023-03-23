@@ -4,9 +4,13 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using QRCoder;
 using SteamKit2;
+using SteamKit2.Authentication;
 
 #pragma warning disable CA1031 // Do not catch general exception types
 [assembly: CLSCompliant(false)]
@@ -14,6 +18,8 @@ namespace SteamTokenDumper;
 
 internal static class Program
 {
+    private static byte[] EncryptionKey;
+
     private static SteamClient steamClient;
     private static CallbackManager manager;
 
@@ -23,18 +29,14 @@ internal static class Program
     private static bool isRunning;
     private static bool isExiting;
 
-    private static string user;
     private static string pass;
-    private static string loginKey;
-    private static string authCode;
-    private static string twoFactorAuth;
+    private static SavedCredentials savedCredentials = new();
     private static int reconnectCount;
 
     private static readonly Configuration Configuration = new();
     private static readonly ApiClient ApiClient = new();
     private static readonly Payload Payload = new();
     private static KnownDepotIds KnownDepotIds;
-    private static string SentryHashFile;
     private static string RememberCredentialsFile;
     public static string AppPath { get; private set; }
 
@@ -50,10 +52,29 @@ internal static class Program
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
 
+        // This is not secure.
+        EncryptionKey = SHA256.HashData(Encoding.UTF8.GetBytes(string.Concat(nameof(SteamTokenDumper), SteamClientData.GetMachineGuid())));
+
         AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
-        SentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
         RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
         KnownDepotIds = new();
+
+        try
+        {
+            var sentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
+
+            if (File.Exists(sentryHashFile))
+            {
+                Console.WriteLine("Deleting stored credentials from previous token dumper version.");
+
+                File.Delete(sentryHashFile);
+                File.Delete(RememberCredentialsFile);
+            }
+        }
+        catch
+        {
+            // don't care
+        }
 
         Console.WriteLine();
         Console.ForegroundColor = ConsoleColor.Blue;
@@ -103,7 +124,7 @@ internal static class Program
 
         Console.WriteLine();
 
-        if (loginKey != null)
+        if (savedCredentials.RefreshToken != null)
         {
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"Logging in using previously remembered login. Delete '{Path.GetFileName(RememberCredentialsFile)}' file if you want it forgotten.");
@@ -117,22 +138,24 @@ internal static class Program
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine("Logging in means this program can do a thorough dump,");
             Console.WriteLine("as getting tokens from Steam files only works for installed games.");
+            Console.WriteLine();
+            Console.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
             Console.ResetColor();
             Console.WriteLine();
 
             Console.Write("Enter your Steam username: ");
-            user = ReadUserInput(true);
+            savedCredentials.Username = ReadUserInput(true);
 
-            if (string.IsNullOrEmpty(user))
+            if (string.IsNullOrEmpty(savedCredentials.Username))
             {
-                Console.Write("Doing an anonymous dump.");
+                Console.WriteLine("Doing an anonymous dump.");
 
                 var random = new Random();
                 Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
 
                 await ApiClient.SendTokens(Payload, Configuration);
             }
-            else if (user != "anonymous")
+            else if (savedCredentials.Username != "anonymous" && savedCredentials.Username != "qr")
             {
                 do
                 {
@@ -163,13 +186,67 @@ internal static class Program
         try
         {
             await Configuration.Load();
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            await Console.Error.WriteLineAsync($"Failed to read config: {e}");
+            Console.ResetColor();
+        }
 
-            if (Configuration.RememberLogin && File.Exists(RememberCredentialsFile))
+        try
+        {
+            await ReadCredentials();
+        }
+        catch (Exception e)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            await Console.Error.WriteLineAsync($"Failed to read stored credentials: {e}");
+            Console.ResetColor();
+        }
+    }
+
+    private static async Task ReadCredentials()
+    {
+        if (!Configuration.RememberLogin)
+        {
+            return;
+        }
+
+        if (!File.Exists(RememberCredentialsFile))
+        {
+            return;
+        }
+
+        var encryptedBytes = await File.ReadAllBytesAsync(RememberCredentialsFile);
+        var decryptedData = CryptoHelper.SymmetricDecrypt(encryptedBytes, EncryptionKey);
+
+        savedCredentials = JsonSerializer.Deserialize(decryptedData, SavedCredentialsJsonContext.Default.SavedCredentials);
+
+        if (savedCredentials.Version != SavedCredentials.CurrentVersion)
+        {
+            savedCredentials = new();
+            throw new InvalidDataException($"Got incorrect saved credentials version.");
+        }
+    }
+
+    private static async Task SaveCredentials()
+    {
+        if (!Configuration.RememberLogin)
+        {
+            return;
+        }
+
+        try
+        {
+            var json = JsonSerializer.SerializeToUtf8Bytes(savedCredentials, new SavedCredentialsJsonContext(new JsonSerializerOptions
             {
-                var credentials = (await File.ReadAllTextAsync(RememberCredentialsFile)).Split(';', 2);
-                user = credentials[0];
-                loginKey = credentials[1];
-            }
+                WriteIndented = true,
+            }).SavedCredentials);
+
+            var encryptedData = CryptoHelper.SymmetricEncrypt(json, EncryptionKey);
+
+            await File.WriteAllBytesAsync(RememberCredentialsFile, encryptedData);
         }
         catch (Exception e)
         {
@@ -199,11 +276,20 @@ internal static class Program
 
     private static void ReadCredentialsAgain()
     {
+        Console.WriteLine();
+        Console.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
+        Console.WriteLine();
+
         do
         {
             Console.Write("Enter your Steam username: ");
-            user = ReadUserInput(true);
-        } while (string.IsNullOrEmpty(user));
+            savedCredentials.Username = ReadUserInput(true);
+        } while (string.IsNullOrEmpty(savedCredentials.Username));
+
+        if (savedCredentials.Username == "anonymous" || savedCredentials.Username == "qr")
+        {
+            return;
+        }
 
         do
         {
@@ -225,12 +311,6 @@ internal static class Program
         manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
         manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
         manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
-        manager.Subscribe<SteamUser.UpdateMachineAuthCallback>(OnMachineAuth);
-
-        if (Configuration.RememberLogin)
-        {
-            manager.Subscribe<SteamUser.LoginKeyCallback>(OnLoginKey);
-        }
 
         LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
@@ -242,7 +322,7 @@ internal static class Program
 
         while (isRunning)
         {
-            manager.RunWaitAllCallbacks(TimeSpan.FromSeconds(5));
+            manager.RunWaitAllCallbacks(TimeSpan.FromSeconds(2));
         }
     }
 
@@ -255,7 +335,7 @@ internal static class Program
         {
             if (info.Key != ConsoleKey.Backspace && info.KeyChar != 0)
             {
-                if (showFirstChar && password.Length == 0)
+                if (showFirstChar && password.Length < 2)
                 {
                     Console.Write(info.KeyChar.ToString());
                 }
@@ -283,41 +363,81 @@ internal static class Program
         return password;
     }
 
-    private static void OnConnected(SteamClient.ConnectedCallback callback)
+    private static async void OnConnected(SteamClient.ConnectedCallback callback)
     {
-        Console.WriteLine("Connected to Steam! Logging in...");
+        Console.WriteLine("Connected to Steam!");
 
-        if (user == "anonymous")
+        if (savedCredentials.Username == "anonymous")
         {
             steamUser.LogOnAnonymous();
             return;
         }
 
-        byte[] sentryFileHash = null;
+        AuthSession authSession = null;
 
-        try
+        if (savedCredentials.Username == "qr")
         {
-            if (File.Exists(SentryHashFile))
+            var qrAuthSession = await steamClient.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
             {
-                sentryFileHash = File.ReadAllBytes(SentryHashFile);
-            }
+                DeviceFriendlyName = nameof(SteamTokenDumper),
+            });
+
+            qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession, true);
+
+            DrawQRCode(qrAuthSession);
+
+            authSession = qrAuthSession;
         }
-        catch
+        else if (savedCredentials.RefreshToken == null)
         {
-            // If for whatever reason we can't read the sentry
+            authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
+            {
+                Password = pass,
+                Username = savedCredentials.Username,
+                IsPersistentSession = Configuration.RememberLogin,
+                DeviceFriendlyName = nameof(SteamTokenDumper),
+                Authenticator = new UserConsoleAuthenticator(),
+            });
         }
+
+        if (authSession != null)
+        {
+            var pollResponse = await authSession.PollingWaitForResultAsync();
+
+            savedCredentials.Username = pollResponse.AccountName;
+            savedCredentials.RefreshToken = pollResponse.RefreshToken;
+
+            await SaveCredentials();
+        }
+
+        pass = null; // Password should not be needed
+
+        Console.WriteLine("Logging in...");
 
         steamUser.LogOn(new SteamUser.LogOnDetails
         {
             LoginID = 0x44_55_4D_50, // "DUMP"
-            Username = user,
-            Password = pass,
-            LoginKey = loginKey,
-            AuthCode = authCode,
-            TwoFactorCode = twoFactorAuth,
-            SentryFileHash = sentryFileHash,
+            Username = savedCredentials.Username,
+            Password = savedCredentials.RefreshToken == null ? pass : null,
+            AccessToken = savedCredentials.RefreshToken,
             ShouldRememberPassword = Configuration.RememberLogin,
         });
+    }
+
+    private static void DrawQRCode(QrAuthSession authSession, bool rewrite = false)
+    {
+        using var qrGenerator = new QRCodeGenerator();
+        var qrCodeData = qrGenerator.CreateQrCode(authSession.ChallengeURL, QRCodeGenerator.ECCLevel.L);
+        using var qrCode = new AsciiQRCode(qrCodeData);
+        var qrCodeAsAsciiArt = qrCode.GetLineByLineGraphic(1, drawQuietZones: false);
+
+        if (rewrite)
+        {
+            Console.SetCursorPosition(0, Console.CursorTop - qrCodeAsAsciiArt.Length - 1);
+        }
+
+        Console.WriteLine("Use the Steam Mobile App to sign in via QR code:");
+        Console.WriteLine(string.Join("\n", qrCodeAsAsciiArt));
     }
 
     private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
@@ -356,29 +476,6 @@ internal static class Program
 
     private static void OnLoggedOn(SteamUser.LoggedOnCallback callback)
     {
-        var isSteamGuard = callback.Result == EResult.AccountLogonDenied;
-        var is2FA = callback.Result == EResult.AccountLoginDeniedNeedTwoFactor;
-
-        if (isSteamGuard || is2FA)
-        {
-            reconnectCount = 0;
-
-            Console.WriteLine("This account is SteamGuard protected!");
-
-            if (is2FA)
-            {
-                Console.Write("Please enter your 2 factor auth code from your authenticator app: ");
-                twoFactorAuth = Console.ReadLine()?.Trim();
-            }
-            else
-            {
-                Console.Write($"Please enter the auth code sent to the email at {callback.EmailDomain}: ");
-                authCode = Console.ReadLine()?.Trim();
-            }
-
-            return;
-        }
-
         if (callback.Result != EResult.OK)
         {
             if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
@@ -387,45 +484,19 @@ internal static class Program
                 Console.WriteLine($"Steam is currently having issues ({callback.Result})...");
                 Console.ResetColor();
             }
-            else if (callback.Result == EResult.TwoFactorCodeMismatch)
-            {
-                reconnectCount = 0;
-
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("You have entered an invalid two factor code.");
-                Console.ResetColor();
-
-                if (twoFactorAuth != null)
-                {
-                    Console.Write("Please enter your 2 factor auth code from your authenticator app: ");
-                    twoFactorAuth = Console.ReadLine()?.Trim();
-                }
-                else
-                {
-                    Console.Write("Please enter the auth code sent to your email: ");
-                    authCode = Console.ReadLine()?.Trim();
-                }
-            }
-            else if (callback.Result == EResult.InvalidPassword)
+            else if (callback.Result == EResult.InvalidPassword || callback.Result == EResult.InvalidSignature)
             {
                 reconnectCount = 0;
 
                 Console.ForegroundColor = ConsoleColor.Red;
 
-                if (Configuration.RememberLogin && loginKey != null)
+                if (savedCredentials.RefreshToken != null)
                 {
-                    loginKey = null;
+                    savedCredentials.RefreshToken = null;
 
-                    Console.WriteLine("Stored credentials are invalid, credentials file has been deleted.");
+                    Console.WriteLine($"Stored credentials are invalid. ({callback.Result})");
 
-                    try
-                    {
-                        File.Delete(RememberCredentialsFile);
-                    }
-                    catch
-                    {
-                        // who cares
-                    }
+                    Task.Run(SaveCredentials);
                 }
                 else
                 {
@@ -450,8 +521,6 @@ internal static class Program
         }
 
         reconnectCount = 0;
-        authCode = null;
-        twoFactorAuth = null;
 
         if (LicenseListCallback == null)
         {
@@ -491,60 +560,6 @@ internal static class Program
         {
             Console.WriteLine("Logged on, waiting for licenses...");
         }
-    }
-
-    private static void OnMachineAuth(SteamUser.UpdateMachineAuthCallback callback)
-    {
-        int fileSize;
-        byte[] sentryHash;
-
-        using (var stream = new MemoryStream(callback.BytesToWrite))
-        {
-            stream.Seek(callback.Offset, SeekOrigin.Begin);
-            stream.Write(callback.Data, 0, callback.BytesToWrite);
-            stream.Seek(0, SeekOrigin.Begin);
-
-            fileSize = (int)stream.Length;
-
-            using var sha = SHA1.Create();
-            sentryHash = sha.ComputeHash(stream);
-        }
-
-        try
-        {
-            File.WriteAllBytes(SentryHashFile, sentryHash);
-        }
-        catch
-        {
-            return;
-        }
-
-        steamUser.SendMachineAuthResponse(new SteamUser.MachineAuthDetails
-        {
-            JobID = callback.JobID,
-
-            FileName = callback.FileName,
-
-            BytesWritten = callback.BytesToWrite,
-            FileSize = fileSize,
-            Offset = callback.Offset,
-
-            Result = EResult.OK,
-            LastError = 0,
-
-            OneTimePassword = callback.OneTimePassword,
-
-            SentryFileHash = sentryHash
-        });
-    }
-
-    private static void OnLoginKey(SteamUser.LoginKeyCallback callback)
-    {
-        File.WriteAllText(RememberCredentialsFile, $"{user};{callback.LoginKey}");
-
-        loginKey = callback.LoginKey;
-
-        steamUser.AcceptNewLoginKey(callback);
     }
 
     private static void OnLicenseList(SteamApps.LicenseListCallback licenseList)
