@@ -453,8 +453,30 @@ internal static class Program
             Console.WriteLine("Use the Steam Mobile App to sign in via QR code:");
         }
 
+        var emptyLine = new string(' ', qrCodeAsAsciiArt[0].Length + 8);
+
+        Console.BackgroundColor = ConsoleColor.White;
+        Console.ForegroundColor = ConsoleColor.Black;
+        Console.Write(emptyLine);
+        Console.ResetColor();
         Console.WriteLine();
-        Console.WriteLine(string.Join("\n", qrCodeAsAsciiArt));
+
+        foreach (var line in qrCodeAsAsciiArt)
+        {
+            Console.BackgroundColor = ConsoleColor.White;
+            Console.ForegroundColor = ConsoleColor.Black;
+            Console.Write("    ");
+            Console.Write(line);
+            Console.Write("    ");
+            Console.ResetColor();
+            Console.WriteLine();
+        }
+
+        Console.BackgroundColor = ConsoleColor.White;
+        Console.ForegroundColor = ConsoleColor.Black;
+        Console.Write(emptyLine);
+        Console.ResetColor();
+        Console.WriteLine();
     }
 
     private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
