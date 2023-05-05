@@ -523,7 +523,9 @@ internal static class Program
                 Console.WriteLine($"Steam is currently having issues ({callback.Result})...");
                 Console.ResetColor();
             }
-            else if (callback.Result == EResult.InvalidPassword || callback.Result == EResult.InvalidSignature)
+            else if (callback.Result == EResult.InvalidPassword
+            || callback.Result == EResult.InvalidSignature
+            || callback.Result == EResult.AccessDenied)
             {
                 reconnectCount = 0;
 
