@@ -525,7 +525,9 @@ internal static class Program
             }
             else if (callback.Result == EResult.InvalidPassword
             || callback.Result == EResult.InvalidSignature
-            || callback.Result == EResult.AccessDenied)
+            || callback.Result == EResult.AccessDenied
+            || callback.Result == EResult.Expired
+            || callback.Result == EResult.Revoked)
             {
                 reconnectCount = 0;
 
