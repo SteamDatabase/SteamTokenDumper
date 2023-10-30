@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -575,6 +576,8 @@ internal static class Program
             return;
         }
 
+        Task.Run(RenewRefreshTokenIfRequired);
+
         var steamid = callback.ClientSteamID ?? new SteamID(0, EUniverse.Public, EAccountType.Invalid);
         Payload.SteamID = steamid.Render();
 
@@ -602,6 +605,40 @@ internal static class Program
         else
         {
             Console.WriteLine("Logged on, waiting for licenses...");
+        }
+    }
+
+    private static async Task RenewRefreshTokenIfRequired()
+    {
+        if (!Configuration.RememberLogin || savedCredentials.RefreshToken == null)
+        {
+            return;
+        }
+
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.ReadJwtToken(savedCredentials.RefreshToken);
+
+            Console.WriteLine($"Refresh token is valid to {token.ValidTo:yyyy-MM-dd HH:mm:ss}");
+
+            if (DateTime.UtcNow.Add(TimeSpan.FromDays(30)) >= token.ValidTo)
+            {
+                var newToken = await steamClient.Authentication.GenerateAccessTokenForAppAsync(steamClient.SteamID, savedCredentials.RefreshToken, allowRenewal: true);
+
+                if (!string.IsNullOrEmpty(newToken.RefreshToken))
+                {
+                    Console.WriteLine("Renewed the refresh token");
+
+                    savedCredentials.RefreshToken = newToken.RefreshToken;
+
+                    await SaveCredentials();
+                }
+            }
+        }
+        catch (Exception)
+        {
+            //
         }
     }
 
