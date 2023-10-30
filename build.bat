@@ -18,7 +18,7 @@ echo.
 del SteamTokenDumper.zip
 rmdir /Q /S obj
 rmdir /Q /S bin
-dotnet publish -c Release --runtime win-x64 --self-contained true --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true
+dotnet publish -c Release --runtime win-x64 --self-contained true --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true SteamTokenDumper.csproj
 copy release_license.txt bin\SteamTokenDumper\LICENSE.txt
 bash -c "unix2dos bin/SteamTokenDumper/SteamTokenDumper.config.ini"
 bash -c "unix2dos bin/SteamTokenDumper/LICENSE.txt"
@@ -32,7 +32,7 @@ echo.
 del SteamTokenDumper-linux.tar.gz
 rmdir /Q /S obj
 rmdir /Q /S bin
-dotnet publish -c Release --runtime linux-x64 --self-contained true --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true
+dotnet publish -c Release --runtime linux-x64 --self-contained true --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true SteamTokenDumper.csproj
 copy release_license.txt bin\SteamTokenDumper\LICENSE.txt
 bash -c "dos2unix bin/SteamTokenDumper/SteamTokenDumper.config.ini"
 bash -c "dos2unix bin/SteamTokenDumper/LICENSE.txt"
