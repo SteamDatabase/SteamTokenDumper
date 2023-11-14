@@ -17,13 +17,13 @@ internal sealed class Payload
     public string SteamID { get; set; }
 
     [JsonPropertyName("apps")]
-    public Dictionary<string, string> Apps { get; } = new();
+    public Dictionary<string, string> Apps { get; } = [];
 
     [JsonPropertyName("subs")]
-    public Dictionary<string, string> Subs { get; } = new();
+    public Dictionary<string, string> Subs { get; } = [];
 
     [JsonPropertyName("depots")]
-    public Dictionary<string, string> Depots { get; } = new();
+    public Dictionary<string, string> Depots { get; } = [];
 }
 
 [JsonSerializable(typeof(Payload))]

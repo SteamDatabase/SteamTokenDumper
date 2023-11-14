@@ -192,7 +192,7 @@ internal sealed class ApiClient : IDisposable
                 list.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
 
-            return list.ToImmutableHashSet();
+            return [..list];
         }
         catch (Exception e)
         {
@@ -202,6 +202,6 @@ internal sealed class ApiClient : IDisposable
             Console.ResetColor();
         }
 
-        return new HashSet<uint>().ToImmutableHashSet();
+        return [];
     }
 }

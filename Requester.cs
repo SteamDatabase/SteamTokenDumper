@@ -9,25 +9,13 @@ using static SteamKit2.SteamApps;
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
-internal sealed class Requester
+internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Configuration config)
 {
     private const int ItemsPerRequest = 200;
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);
     private bool SomeRequestFailed;
-    private readonly Payload payload;
-    private readonly SteamApps steamApps;
-    private readonly KnownDepotIds knownDepotIds;
-    private readonly Configuration config;
-    private readonly HashSet<uint> skippedPackages = new();
-    private readonly HashSet<uint> skippedApps = new();
-
-    public Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Configuration config)
-    {
-        this.payload = payload;
-        this.steamApps = steamApps;
-        this.knownDepotIds = knownDepotIds;
-        this.config = config;
-    }
+    private readonly HashSet<uint> skippedPackages = [];
+    private readonly HashSet<uint> skippedApps = [];
 
     public List<PICSRequest> ProcessLicenseList(LicenseListCallback licenseList)
     {
@@ -52,7 +40,7 @@ internal sealed class Requester
             payload.Subs[license.PackageID.ToString(CultureInfo.InvariantCulture)] = license.AccessToken.ToString(CultureInfo.InvariantCulture);
         }
 
-        if (skippedPackages.Any())
+        if (skippedPackages.Count > 0)
         {
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Yellow;
@@ -186,7 +174,7 @@ internal sealed class Requester
             payload.Apps.Remove(appid.ToString(CultureInfo.InvariantCulture));
         }
 
-        if (skippedApps.Any())
+        if (skippedApps.Count > 0)
         {
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Yellow;

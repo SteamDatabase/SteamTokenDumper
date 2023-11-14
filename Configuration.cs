@@ -15,7 +15,7 @@ internal sealed class Configuration
     public bool UserConsentBeforeRun { get; private set; } = true;
     public bool DumpPayload { get; private set; }
     public bool Debug { get; private set; }
-    public HashSet<uint> SkipApps { get; } = new();
+    public HashSet<uint> SkipApps { get; } = [];
 
     public async Task Load()
     {
@@ -97,7 +97,7 @@ internal sealed class Configuration
             Console.WriteLine("Will ask for confirmation before sending results.");
         }
 
-        if (SkipApps.Any())
+        if (SkipApps.Count > 0)
         {
             Console.WriteLine();
             Console.ForegroundColor = ConsoleColor.Yellow;

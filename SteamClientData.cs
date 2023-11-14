@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Microsoft.Win32;
 using ValveKeyValue;
 
@@ -148,16 +147,12 @@ internal static class SteamClientData
         }
 
         // For some inexplicable reason these keys can have different capilizations
-        var depots = data.Children
+        var depots = (data.Children
             ?.FirstOrDefault(k => k.Name.Equals("software", StringComparison.OrdinalIgnoreCase))
             ?.FirstOrDefault(k => k.Name.Equals("valve", StringComparison.OrdinalIgnoreCase))
             ?.FirstOrDefault(k => k.Name.Equals("steam", StringComparison.OrdinalIgnoreCase))
-            ?.FirstOrDefault(k => k.Name.Equals("depots", StringComparison.OrdinalIgnoreCase));
-
-        if (depots == null)
-        {
-            throw new InvalidDataException("Failed to find depots section in config.vdf");
-        }
+            ?.FirstOrDefault(k => k.Name.Equals("depots", StringComparison.OrdinalIgnoreCase)))
+            ?? throw new InvalidDataException("Failed to find depots section in config.vdf");
 
         foreach (var depot in depots)
         {

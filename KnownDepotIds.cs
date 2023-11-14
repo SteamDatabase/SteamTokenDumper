@@ -12,7 +12,7 @@ namespace SteamTokenDumper;
 
 internal sealed class KnownDepotIds 
 {
-    public readonly HashSet<uint> PreviouslySent = new();
+    public readonly HashSet<uint> PreviouslySent = [];
     public ImmutableHashSet<uint> Server;
     private readonly string KnownDepotIdsPath = Path.Combine(Program.AppPath, "SteamTokenDumper.depots.txt");
 

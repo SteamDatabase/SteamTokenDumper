@@ -596,10 +596,10 @@ internal static class Program
                 var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
                 tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
 
-                await DoRequest(requester, new List<SteamApps.PICSRequest>
-                {
-                    new SteamApps.PICSRequest(ANONYMOUS_PACKAGE, token)
-                });
+                await DoRequest(requester,
+                [
+                    new(ANONYMOUS_PACKAGE, token)
+                ]);
             });
         }
         else
