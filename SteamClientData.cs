@@ -171,7 +171,7 @@ internal static class SteamClientData
             }
         }
 
-        Console.WriteLine($"Got {payload.Depots.Count} depot keys from config.vdf");
+        Console.WriteLine($"Got {depots.Count()} depot keys from config.vdf");
     }
 
     private static string GetSteamPath()
