@@ -23,7 +23,7 @@
   <ItemGroup>
     <PackageReference Include="QRCoder" Version="1.4.3" />
     <PackageReference Include="SteamKit2" Version="2.5.0" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.1.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="7.2.0" />
     <PackageReference Include="ValveKeyValue" Version="0.9.0.267" />
   </ItemGroup>
   <ItemGroup>
