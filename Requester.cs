@@ -370,6 +370,12 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                                 continue;
                             }
 
+                            // Depot key requests timeout, so do not request keys for depots that have no manifests
+                            if (depotfromapp == 0 && depot["manifests"].Children.Count == 0 && depot["encryptedmanifests"].Children.Count == 0)
+                            {
+                                continue;
+                            }
+
                             depotsToRequest.Add((depotid, app.ID));
                         }
                     }
