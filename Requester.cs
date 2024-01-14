@@ -283,7 +283,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 }
             };
 
-            foreach (var chunk in appInfoRequests.Chunk(ItemsPerRequest))
+            foreach (var chunk in appInfoRequests.AsEnumerable().Reverse().Chunk(ItemsPerRequest))
             {
                 ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - waiting for appinfo...");
 
