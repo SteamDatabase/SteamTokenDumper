@@ -143,7 +143,10 @@ internal static class SteamClientData
 
         using (var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
         {
-            data = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(fs);
+            data = KVSerializer.Create(KVSerializationFormat.KeyValues1Text).Deserialize(fs, new KVSerializerOptions
+            {
+                HasEscapeSequences = true,
+            });
         }
 
         // For some inexplicable reason these keys can have different capilizations
