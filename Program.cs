@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.IdentityModel.JsonWebTokens;
 using QRCoder;
 using SteamKit2;
 using SteamKit2.Authentication;
@@ -617,8 +617,7 @@ internal static class Program
 
         try
         {
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.ReadJwtToken(savedCredentials.RefreshToken);
+            var token = new JsonWebToken(savedCredentials.RefreshToken);
 
             Console.WriteLine($"Refresh token is valid to {token.ValidTo:yyyy-MM-dd HH:mm:ss}");
 
