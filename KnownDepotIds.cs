@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
-internal sealed class KnownDepotIds 
+internal sealed class KnownDepotIds
 {
     public readonly HashSet<uint> PreviouslySent = [];
     public ImmutableHashSet<uint> Server;
@@ -56,6 +56,11 @@ internal sealed class KnownDepotIds
 
     public async Task SaveKnownDepotIds()
     {
+        if (PreviouslySent.Count == 0)
+        {
+            return;
+        }
+
         try
         {
             var data = new StringBuilder();
