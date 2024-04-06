@@ -31,6 +31,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+  <PropertyGroup Condition="'$(CI)' == 'true'">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
   <!-- Trimming functionality as described on https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options -->
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <DebuggerSupport>false</DebuggerSupport>
