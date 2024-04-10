@@ -100,12 +100,17 @@ jobs:
 
     - name: Create release files
       run: |
+       set -eux
        mkdir release
 
-       chmod +x artifacts/SteamTokenDumper-linux-x64/SteamTokenDumper
-       tar -I 'gzip -9' -cvf SteamTokenDumper-linux.tar.gz --owner=0 --group=0 -C artifacts/SteamTokenDumper-linux-x64/ .
+       # Linux
+       cd artifacts/SteamTokenDumper-linux-x64/
+       chmod +x SteamTokenDumper
+       tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file ../../release/SteamTokenDumper-linux.tar.gz -- *
+       cd ../../
 
-       zip -9j release/SteamTokenDumper-windows.zip artifacts/SteamTokenDumper-windows-x64/*
+       # Windows
+       zip -9 --junk-paths release/SteamTokenDumper-windows.zip artifacts/SteamTokenDumper-windows-x64/*
 
     - name: Release
       uses: softprops/action-gh-release@v2
