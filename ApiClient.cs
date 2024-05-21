@@ -114,9 +114,6 @@ internal sealed class ApiClient : IDisposable
 
             result.EnsureSuccessStatusCode();
 
-            AnsiConsole.WriteLine();
-            AnsiConsole.WriteLine();
-
             return true;
         }
         catch (Exception e)
