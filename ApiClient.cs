@@ -41,8 +41,6 @@ internal sealed class ApiClient : IDisposable
     {
         if (config.DumpPayload)
         {
-            AnsiConsole.WriteLine();
-
             var payloadDump = new PayloadDump(payload);
             var file = Path.Combine(Program.AppPath, "SteamTokenDumper.payload.json");
 
@@ -58,14 +56,18 @@ internal sealed class ApiClient : IDisposable
             }
             catch (Exception e)
             {
-                AnsiConsole.WriteLine($"Failed to write payload dump: {e}");
+                AnsiConsole.Write(
+                    new Panel(new Text($"Failed to write payload dump: {e}", new Style(Color.Red)))
+                        .BorderColor(Color.Red)
+                        .RoundedBorder()
+                );
             }
+
+            AnsiConsole.WriteLine();
         }
 
         if (config.VerifyBeforeSubmit)
         {
-            AnsiConsole.WriteLine();
-
             // Read any buffered keys so it doesn't auto submit
             while (Console.KeyAvailable)
             {
@@ -78,7 +80,6 @@ internal sealed class ApiClient : IDisposable
 
         AnsiConsole.WriteLine();
         AnsiConsole.WriteLine("Submitting tokens to SteamDB...");
-        AnsiConsole.WriteLine();
 
         var postData = JsonSerializer.Serialize(payload, PayloadJsonContext.Default.Payload);
 
@@ -89,10 +90,11 @@ internal sealed class ApiClient : IDisposable
             var output = await result.Content.ReadAsStringAsync();
             output = output.Trim();
 
-            Console.ForegroundColor = result.IsSuccessStatusCode ? ConsoleColor.Blue : ConsoleColor.Red;
-            Console.WriteLine(output);
-            Console.ResetColor();
-            Console.WriteLine();
+            AnsiConsole.Write(
+                new Panel(new Text(output, new Style(result.IsSuccessStatusCode ? Color.CadetBlue : Color.Red)))
+                    .BorderColor(result.IsSuccessStatusCode ? Color.Blue : Color.Red)
+                    .RoundedBorder()
+            );
 
             try
             {
@@ -112,16 +114,18 @@ internal sealed class ApiClient : IDisposable
 
             result.EnsureSuccessStatusCode();
 
-            Console.WriteLine();
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
 
             return true;
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Whoops, failed to submit tokens to SteamDB: {e}");
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to submit tokens to SteamDB: {e}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
 
         return false;
@@ -146,22 +150,22 @@ internal sealed class ApiClient : IDisposable
 
             if (versionInt != Version)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                await Console.Error.WriteLineAsync("[!] There is a new version of token dumper available.");
-                await Console.Error.WriteLineAsync("[!] Please download the new version.");
-                await Console.Error.WriteLineAsync();
-                Console.ResetColor();
+                AnsiConsole.Write(
+                    new Panel(new Text("There is a new version of the token dumper available.\nPlease download the new version.", new Style(Color.Green)))
+                        .BorderColor(Color.GreenYellow)
+                        .RoundedBorder()
+                );
 
                 return false;
             }
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"[!] Update check failed: {e}");
-            await Console.Error.WriteLineAsync("[!] Your submission will most likely fail.");
-            await Console.Error.WriteLineAsync();
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Update check failed: {e}\n\nYour submission will most likely fail.", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
 
             return false;
         }
@@ -197,10 +201,11 @@ internal sealed class ApiClient : IDisposable
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"[!] Failed to get list of depots to skip: {e}");
-            await Console.Error.WriteLineAsync();
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to get list of depots to skip: {e}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
 
         return [];

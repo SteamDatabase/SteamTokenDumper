@@ -43,7 +43,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         if (skippedPackages.Count > 0)
         {
-            AnsiConsole.MarkupLine($"Skipped auto granted packages: [yellow]{string.Join(", ", skippedPackages)}[/]");
+            AnsiConsole.MarkupLine($"Skipped auto granted packages: [yellow]{string.Join(", ", skippedPackages.Order())}[/]");
         }
 
         return packages;
@@ -60,20 +60,19 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 .Columns([
                     new TaskDescriptionColumn(),
                     new ProgressBarColumn(),
-                    new PercentageColumn(),
+                    new IntValueProgressColumn(),
                     new RemainingTimeColumn(),
                     new SpinnerColumn(),
                 ])
                 .StartAsync(async ctx =>
                 {
-                    var progressPackages = ctx.AddTask("Packages info", maxValue: packages.Count);
-                    var progressTokens = ctx.AddTask("App tokens", autoStart: false);
-                    var progressApps = ctx.AddTask("App info", autoStart: false);
+                    var progressPackages = ctx.AddTask("Package info", maxValue: packages.Count);
+                    var progressTokens = ctx.AddTask("App tokens", autoStart: false, maxValue: 0);
+                    var progressApps = ctx.AddTask("App info", autoStart: false, maxValue: 0);
+                    var progressDepots = ctx.AddTask("Depot keys", autoStart: false, maxValue: 0);
 
                     var (apps, depots) = await RequestPackageInfo(progressPackages, packages);
-                    progressPackages.StopTask();
-
-                    await Request(progressApps, progressTokens, apps, depots);
+                    await Request(progressApps, progressTokens, progressDepots, apps, depots);
                 });
 
             AnsiConsole.WriteLine();
@@ -86,10 +85,11 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         {
             SomeRequestFailed = true;
 
-            await Console.Error.WriteLineAsync();
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync(e.ToString());
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text(e.ToString(), new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
 
         if (SomeRequestFailed)
@@ -176,6 +176,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             progress.Value += chunk.Length;
         }
 
+        progress.StopTask();
+
         foreach (var appid in config.SkipApps)
         {
             if (payload.Apps.Remove(appid.ToString(CultureInfo.InvariantCulture)))
@@ -192,17 +194,13 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         if (skippedApps.Count > 0)
         {
-            AnsiConsole.WriteLine();
-            AnsiConsole.WriteLine($"Skipped app ids: [yellow]{string.Join(", ", skippedApps)}[/]");
+            AnsiConsole.MarkupLine($"Skipped app ids: [yellow]{string.Join(", ", skippedApps.Order())}[/]");
         }
-
-        AnsiConsole.WriteLine();
-        AnsiConsole.WriteLine();
 
         return (apps, depots);
     }
 
-    private async Task Request(ProgressTask progress, ProgressTask progressTokens, HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
+    private async Task Request(ProgressTask progress, ProgressTask progressTokens, ProgressTask progressDepots, HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
     {
         var appInfoRequests = new List<PICSRequest>();
         var tokensCount = 0;
@@ -245,8 +243,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             progressTokens.Value += chunk.Length;
 
-            //ConsoleRewriteLine($"App tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
-
             foreach (var (key, value) in tokens.AppTokens)
             {
                 if (value > 0)
@@ -259,6 +255,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         }
 
         progressTokens.StopTask();
+
+        AnsiConsole.MarkupLine($"App tokens granted: [green]{tokensCount}[/] - Denied: [red]{tokensDeniedCount}[/] - Non-zero: [green]{tokensNonZeroCount}[/]");
 
         if (appInfoRequests.Count > 0)
         {
@@ -283,6 +281,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     try
                     {
                         var result = await keyTask;
+
+                        progressDepots.Value += 1;
 
                         if (result.Result != EResult.OK)
                         {
@@ -402,7 +402,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
                 if (depotsToRequest.Count > 0)
                 {
-                    var sentKeyRequests = 0;
+                    progressDepots.MaxValue += depotsToRequest.Count;
 
                     foreach (var (depotid, appid) in depotsToRequest)
                     {
@@ -410,8 +410,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                         job.Timeout = Timeout;
                         allKeyRequests.Add(job);
                         await Task.Delay(500);
-
-                        sentKeyRequests++;
 
                         if (depotKeysRequested++ % 15 == 0)
                         {
@@ -423,6 +421,11 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 if (!Program.IsConnected)
                 {
                     await Program.ReconnectEvent.Task;
+                }
+
+                if (allKeyRequests.Count > 0)
+                {
+                    await CheckFinishedDepotKeyRequests();
                 }
             }
 
@@ -442,7 +445,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             if (depotKeysRequested > 0)
             {
-                AnsiConsole.MarkupLine($"Requested [green]{depotKeysRequested}[/] depot keys [gray]({depotKeysFailed} failed)[/]");
+                AnsiConsole.MarkupLine($"Depot keys requested: [green]{depotKeysRequested}[/] - Failed: [red]{depotKeysFailed}[/]");
             }
         }
 

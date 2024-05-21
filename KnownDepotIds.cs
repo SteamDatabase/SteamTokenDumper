@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Spectre.Console;
 
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
@@ -22,7 +23,7 @@ internal sealed class KnownDepotIds
 
         Server = await apiClient.GetBackendKnownDepotIds();
 
-        Console.WriteLine($"Got {Server.Count} depot ids from the backend to skip.");
+        AnsiConsole.WriteLine($"Got {Server.Count} depot ids from the backend to skip.");
     }
 
     private async Task LoadKnownDepotIds()
@@ -44,13 +45,15 @@ internal sealed class KnownDepotIds
                 PreviouslySent.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
 
-            Console.WriteLine($"You have sent {PreviouslySent.Count} depot keys before, they will be skipped.");
+            AnsiConsole.WriteLine($"You have sent {PreviouslySent.Count} depot keys before, they will be skipped.");
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"[!] Failed to load known depot ids: {e.Message}");
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to load known depot ids: {e.Message}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
     }
 
@@ -78,9 +81,11 @@ internal sealed class KnownDepotIds
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"[!] Failed to save known depot ids: {e.Message}");
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to save known depot ids: {e.Message}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
     }
 }

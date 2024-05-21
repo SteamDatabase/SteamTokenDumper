@@ -125,32 +125,33 @@ internal static class Program
             }
             catch (Exception e)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                await Console.Error.WriteLineAsync(e.ToString());
-                Console.ResetColor();
+                AnsiConsole.Write(
+                    new Panel(new Text($"Failed to read Steam client data: {e}", new Style(Color.Red)))
+                        .BorderColor(Color.Red)
+                        .RoundedBorder()
+                );
             }
         }
 
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
 
         if (savedCredentials.RefreshToken != null)
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine($"Logging in using previously remembered login. Delete '{Path.GetFileName(RememberCredentialsFile)}' file if you want it forgotten.");
-            Console.ResetColor();
-            Console.WriteLine();
+            AnsiConsole.Write(
+                new Panel(new Markup($"Logging in using previously remembered login.\nDelete '[u]{Markup.Escape(Path.GetFileName(RememberCredentialsFile))}[/]' file if you want it forgotten.", new Style(Color.Green)))
+                    .BorderColor(Color.Green)
+                    .RoundedBorder()
+            );
 
             InitializeSteamKit();
         }
         else
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.WriteLine("Logging in means this program can do a thorough dump,");
-            Console.WriteLine("as getting tokens from Steam files only works for installed games.");
-            Console.WriteLine();
-            Console.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
-            Console.ResetColor();
-            Console.WriteLine();
+            AnsiConsole.Write(
+                new Panel(new Markup($"Logging in means this program can do a thorough dump, as getting tokens from Steam files only works for installed games.\n\nEnter \"[bold]qr[/]\" into the username field if you would like to scan a QR code with your Steam mobile app.", new Style(Color.Green)))
+                    .BorderColor(Color.Green)
+                    .RoundedBorder()
+            );
 
             savedCredentials.Username = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam username:")
             {
@@ -159,7 +160,7 @@ internal static class Program
 
             if (string.IsNullOrEmpty(savedCredentials.Username))
             {
-                Console.WriteLine("Doing an anonymous dump.");
+                AnsiConsole.WriteLine("Doing an anonymous dump.");
 
                 Payload.SteamID = new SteamID((uint)Random.Shared.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
 
@@ -186,7 +187,7 @@ internal static class Program
             Console.ReadKey(true);
         }
 
-        Console.WriteLine("Press any key to exit...");
+        AnsiConsole.WriteLine("Press any key to exit...");
         Console.ReadKey();
     }
 
@@ -196,11 +197,21 @@ internal static class Program
         {
             await Configuration.Load();
         }
+        catch (FileNotFoundException e)
+        {
+            AnsiConsole.Write(
+                new Panel(new Text(e.Message, new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
+        }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Failed to read config: {e.Message}");
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to read config: {e}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
 
         try
@@ -209,9 +220,11 @@ internal static class Program
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Failed to read stored credentials: {e}");
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to read stored credentials: {e}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
     }
 
@@ -259,17 +272,19 @@ internal static class Program
         }
         catch (Exception e)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Failed to read config: {e}");
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text($"Failed to save credentials: {e}", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
     }
 
     private static void ReadCredentialsAgain()
     {
-        Console.WriteLine();
-        Console.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
+        AnsiConsole.WriteLine();
 
         savedCredentials.Username = AnsiConsole.Ask<string>("Enter your Steam username:");
 
@@ -302,7 +317,7 @@ internal static class Program
 
         isRunning = true;
 
-        Console.WriteLine("Connecting to Steam...");
+        AnsiConsole.WriteLine("Connecting to Steam...");
 
         steamClient.Connect();
 
@@ -314,7 +329,7 @@ internal static class Program
 
     private static async void OnConnected(SteamClient.ConnectedCallback callback)
     {
-        Console.WriteLine("Connected to Steam!");
+        AnsiConsole.WriteLine("Connected to Steam");
 
         if (savedCredentials.Username == "anonymous")
         {
@@ -331,7 +346,7 @@ internal static class Program
                     DeviceFriendlyName = nameof(SteamTokenDumper),
                 });
 
-                qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession, true);
+                qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession);
 
                 DrawQRCode(qrAuthSession);
 
@@ -345,7 +360,7 @@ internal static class Program
                     Username = savedCredentials.Username,
                     IsPersistentSession = Configuration.RememberLogin,
                     DeviceFriendlyName = nameof(SteamTokenDumper),
-                    Authenticator = new UserConsoleAuthenticator(),
+                    Authenticator = new ConsoleAuthenticator(),
                 });
             }
         }
@@ -361,7 +376,7 @@ internal static class Program
             }
             catch (TaskCanceledException)
             {
-                Console.WriteLine("Previous authentication polling was cancelled.");
+                AnsiConsole.WriteLine("Previous authentication polling was cancelled.");
                 return;
             }
 
@@ -371,7 +386,7 @@ internal static class Program
         authSession = null;
         pass = null; // Password should not be needed
 
-        Console.WriteLine("Logging in...");
+        AnsiConsole.WriteLine("Logging in...");
 
         steamUser.LogOn(new SteamUser.LogOnDetails
         {
@@ -383,59 +398,39 @@ internal static class Program
         });
     }
 
-    private static void DrawQRCode(QrAuthSession authSession, bool rewrite = false)
+    private static void DrawQRCode(QrAuthSession authSession)
     {
         using var qrGenerator = new QRCodeGenerator();
         var qrCodeData = qrGenerator.CreateQrCode(authSession.ChallengeURL, QRCodeGenerator.ECCLevel.L);
-        using var qrCode = new AsciiQRCode(qrCodeData);
-        var qrCodeAsAsciiArt = qrCode.GetLineByLineGraphic(1, drawQuietZones: false);
 
-        Console.WriteLine();
+        const int QuietZone = 6;
+        const int QuietZoneOffset = QuietZone / 2;
+        var size = qrCodeData.ModuleMatrix.Count - QuietZone;
+        var canvas = new Canvas(size, size);
 
-        if (rewrite)
+        for (var y = 0; y < size; y++)
         {
-            Console.WriteLine("QR code was refreshed, ignore the previous one.");
-        }
-        else
-        {
-            Console.WriteLine("Use the Steam Mobile App to sign in via QR code:");
-        }
+            for (var x = 0; x < size; x++)
+            {
+                var module = qrCodeData.ModuleMatrix[y + QuietZoneOffset][x + QuietZoneOffset];
 
-        var emptyLine = new string(' ', qrCodeAsAsciiArt[0].Length + 8);
-
-        Console.BackgroundColor = ConsoleColor.White;
-        Console.ForegroundColor = ConsoleColor.Black;
-        Console.Write(emptyLine);
-        Console.ResetColor();
-        Console.WriteLine();
-
-        foreach (var line in qrCodeAsAsciiArt)
-        {
-            Console.BackgroundColor = ConsoleColor.White;
-            Console.ForegroundColor = ConsoleColor.Black;
-            Console.Write("    ");
-            Console.Write(line);
-            Console.Write("    ");
-            Console.ResetColor();
-            Console.WriteLine();
+                canvas.SetPixel(x, y, module ? Color.Gold1 : Color.Black);
+            }
         }
 
-        Console.BackgroundColor = ConsoleColor.White;
-        Console.ForegroundColor = ConsoleColor.Black;
-        Console.Write(emptyLine);
-        Console.ResetColor();
-        Console.WriteLine();
+        AnsiConsole.Write(new Panel(canvas)
+        {
+            Header = new(" Use the Steam Mobile App to sign in via QR code ", Justify.Center)
+        }.RoundedBorder());
     }
 
     private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
-        Console.WriteLine(); // When disconnected after ConsoleRewriteLine
-
         if (isExiting)
         {
             isRunning = false;
 
-            Console.WriteLine("Disconnected from Steam, exiting...");
+            AnsiConsole.WriteLine("Disconnected from Steam, exiting...");
 
             return;
         }
@@ -454,7 +449,7 @@ internal static class Program
 
         sleep += Random.Shared.Next(1001);
 
-        Console.WriteLine($"Disconnected from Steam, reconnecting in {sleep / 1000} seconds...");
+        AnsiConsole.WriteLine($"Disconnected from Steam, reconnecting in {sleep / 1000} seconds...");
 
         Thread.Sleep(sleep);
 
@@ -467,9 +462,11 @@ internal static class Program
         {
             if (callback.Result is EResult.ServiceUnavailable or EResult.TryAnotherCM)
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Steam is currently having issues ({callback.Result})...");
-                Console.ResetColor();
+                AnsiConsole.Write(
+                    new Panel(new Text($"Steam is currently having issues ({callback.Result})...", new Style(Color.Red)))
+                        .BorderColor(Color.Red)
+                        .RoundedBorder()
+                );
             }
             else if (callback.Result == EResult.InvalidPassword
             || callback.Result == EResult.InvalidSignature
@@ -479,30 +476,36 @@ internal static class Program
             {
                 reconnectCount = 0;
 
-                Console.ForegroundColor = ConsoleColor.Red;
-
                 if (savedCredentials.RefreshToken != null)
                 {
                     savedCredentials.RefreshToken = null;
 
-                    Console.WriteLine($"Stored credentials are invalid. ({callback.Result})");
+                    AnsiConsole.Write(
+                        new Panel(new Text($"Stored credentials are invalid. ({callback.Result})", new Style(Color.Red)))
+                            .BorderColor(Color.Red)
+                            .RoundedBorder()
+                    );
 
                     Task.Run(SaveCredentials);
                 }
                 else
                 {
-                    Console.WriteLine("You have entered an invalid username or password.");
+                    AnsiConsole.Write(
+                        new Panel(new Text("You have entered an invalid username or password.", new Style(Color.Red)))
+                            .BorderColor(Color.Red)
+                            .RoundedBorder()
+                    );
                 }
-
-                Console.ResetColor();
 
                 ReadCredentialsAgain();
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"Unable to logon to Steam: {callback.Result} ({callback.ExtendedResult})");
-                Console.ResetColor();
+                AnsiConsole.Write(
+                    new Panel(new Text($"Unable to logon to Steam: {callback.Result} ({callback.ExtendedResult})", new Style(Color.Red)))
+                        .BorderColor(Color.Red)
+                        .RoundedBorder()
+                );
 
                 isRunning = false;
                 isExiting = true;
@@ -515,7 +518,7 @@ internal static class Program
 
         if (LicenseListCallback == null)
         {
-            Console.WriteLine("Logged on, continuing...");
+            AnsiConsole.WriteLine("Logged on, continuing...");
 
             ReconnectEvent.SetResult(true);
             ReconnectEvent = new();
@@ -532,7 +535,7 @@ internal static class Program
         {
             isExiting = true; // No reconnect support for anonymous accounts
 
-            Console.WriteLine("Logged on, requesting package for anonymous users...");
+            AnsiConsole.WriteLine("Logged on, requesting package for anonymous users...");
 
             const uint ANONYMOUS_PACKAGE = 17906;
 
@@ -551,7 +554,7 @@ internal static class Program
         }
         else
         {
-            Console.WriteLine("Logged on, waiting for licenses...");
+            AnsiConsole.WriteLine("Logged on, waiting for licenses...");
         }
     }
 
@@ -566,7 +569,7 @@ internal static class Program
         {
             var token = new JsonWebToken(savedCredentials.RefreshToken);
 
-            Console.WriteLine($"Refresh token is valid to {token.ValidTo:yyyy-MM-dd HH:mm:ss}");
+            AnsiConsole.WriteLine($"Refresh token is valid until {token.ValidTo:yyyy-MM-dd HH:mm:ss}");
 
             if (DateTime.UtcNow.Add(TimeSpan.FromDays(30)) >= token.ValidTo)
             {
@@ -574,7 +577,7 @@ internal static class Program
 
                 if (!string.IsNullOrEmpty(newToken.RefreshToken))
                 {
-                    Console.WriteLine("Renewed the refresh token");
+                    AnsiConsole.WriteLine("Renewed the refresh token");
 
                     savedCredentials.RefreshToken = newToken.RefreshToken;
 
