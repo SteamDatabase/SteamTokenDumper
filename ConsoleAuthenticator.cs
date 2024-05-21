@@ -4,7 +4,7 @@ using SteamKit2.Authentication;
 
 namespace SteamTokenDumper;
 
-internal class ConsoleAuthenticator : IAuthenticator
+internal sealed class ConsoleAuthenticator : IAuthenticator
 {
     /// <inheritdoc />
     public Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)

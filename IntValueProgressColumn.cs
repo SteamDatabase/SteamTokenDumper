@@ -4,7 +4,7 @@ using Spectre.Console.Rendering;
 
 namespace SteamTokenDumper;
 
-internal class IntValueProgressColumn : ProgressColumn
+internal sealed class IntValueProgressColumn : ProgressColumn
 {
     /// <inheritdoc/>
     public override IRenderable Render(RenderOptions options, ProgressTask task, TimeSpan deltaTime)
