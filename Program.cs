@@ -418,6 +418,7 @@ internal static class Program
             }
         }
 
+        AnsiConsole.WriteLine();
         AnsiConsole.Write(new Panel(canvas)
         {
             Header = new(" Use the Steam Mobile App to sign in via QR code ", Justify.Center)
