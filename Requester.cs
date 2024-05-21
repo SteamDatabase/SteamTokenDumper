@@ -445,7 +445,14 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             if (depotKeysRequested > 0)
             {
-                AnsiConsole.MarkupLine($"Depot keys requested: [green]{depotKeysRequested}[/] - Failed: [red]{depotKeysFailed}[/]");
+                if (depotKeysFailed > 0)
+                {
+                    AnsiConsole.MarkupLine($"Depot keys requested: [green]{depotKeysRequested}[/] - Failed: [red]{depotKeysFailed}[/] [gray](failures are expected)[/]");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine($"Depot keys requested: [green]{depotKeysRequested}[/]");
+                }
             }
         }
 
