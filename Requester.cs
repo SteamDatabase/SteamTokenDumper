@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
+using Spectre.Console;
 using SteamKit2;
 using static SteamKit2.SteamApps;
 
@@ -42,10 +43,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         if (skippedPackages.Count > 0)
         {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Skipped auto granted packages: {string.Join(", ", skippedPackages)}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"Skipped auto granted packages: [yellow]{string.Join(", ", skippedPackages)}[/]");
         }
 
         return packages;
@@ -53,14 +51,36 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
     public async Task ProcessPackages(List<PICSRequest> packages)
     {
-        Console.WriteLine();
-        Console.WriteLine($"You have {packages.Count} licenses ({packages.Count(x => x.AccessToken != 0)} of them have a token)");
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"Licenses: [green]{packages.Count}[/] [gray]({packages.Count(x => x.AccessToken != 0)} of them have a token)[/]");
 
         try
         {
-            var (apps, depots) = await RequestPackageInfo(packages);
-            await Request(apps, depots);
+            await AnsiConsole.Progress()
+                .Columns([
+                    new TaskDescriptionColumn(),
+                    new ProgressBarColumn(),
+                    new PercentageColumn(),
+                    new RemainingTimeColumn(),
+                    new SpinnerColumn(),
+                ])
+                .StartAsync(async ctx =>
+                {
+                    var progressPackages = ctx.AddTask("Packages info", maxValue: packages.Count);
+                    var progressTokens = ctx.AddTask("App tokens", autoStart: false);
+                    var progressApps = ctx.AddTask("App info", autoStart: false);
+
+                    var (apps, depots) = await RequestPackageInfo(progressPackages, packages);
+                    progressPackages.StopTask();
+
+                    await Request(progressApps, progressTokens, apps, depots);
+                });
+
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine($"Sub tokens: [green]{payload.Subs.Count}[/]");
+            AnsiConsole.MarkupLine($"App tokens: [green]{payload.Apps.Count}[/]");
+            AnsiConsole.MarkupLine($"Depot keys: [green]{payload.Depots.Count}[/]");
+            AnsiConsole.WriteLine();
         }
         catch (Exception e)
         {
@@ -74,19 +94,15 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         if (SomeRequestFailed)
         {
-            Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync();
-            await Console.Error.WriteLineAsync("[!]");
-            await Console.Error.WriteLineAsync("[!] Some of the requests to Steam failed, which may have resulted in");
-            await Console.Error.WriteLineAsync("[!] some of the tokens or depot keys not being fetched.");
-            await Console.Error.WriteLineAsync("[!] You can try running the dumper again later.");
-            await Console.Error.WriteLineAsync("[!]");
-            await Console.Error.WriteLineAsync();
-            Console.ResetColor();
+            AnsiConsole.Write(
+                new Panel(new Text("Some of the requests to Steam failed, which may have resulted in some of the tokens or depot keys not being fetched.\nYou can try running the dumper again later.", new Style(Color.Red)))
+                    .BorderColor(Color.Red)
+                    .RoundedBorder()
+            );
         }
     }
 
-    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(List<PICSRequest> subInfoRequests)
+    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(ProgressTask progress, List<PICSRequest> subInfoRequests)
     {
         var apps = new HashSet<uint>();
         var depots = new HashSet<uint>();
@@ -106,7 +122,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 }
                 catch (Exception e)
                 {
-                    ConsoleRewriteLine($"Package info task failed: {e.GetType()} {e.Message}");
+                    AnsiConsole.WriteLine($"Package info task failed: {e.GetType()} {e.Message}");
 
                     await AwaitReconnectIfDisconnected();
                 }
@@ -157,7 +173,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 }
             }
 
-            ConsoleRewriteLine($"You own {apps.Count} apps and {depots.Count} depots");
+            progress.Value += chunk.Length;
         }
 
         foreach (var appid in config.SkipApps)
@@ -176,24 +192,25 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         if (skippedApps.Count > 0)
         {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Skipped app ids: {string.Join(", ", skippedApps)}");
-            Console.ResetColor();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine($"Skipped app ids: [yellow]{string.Join(", ", skippedApps)}[/]");
         }
 
-        Console.WriteLine();
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteLine();
 
         return (apps, depots);
     }
 
-    private async Task Request(HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
+    private async Task Request(ProgressTask progress, ProgressTask progressTokens, HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
     {
         var appInfoRequests = new List<PICSRequest>();
         var tokensCount = 0;
         var tokensDeniedCount = 0;
         var tokensNonZeroCount = 0;
+
+        progressTokens.MaxValue = ownedApps.Count;
+        progressTokens.StartTask();
 
         foreach (var chunk in ownedApps.Chunk(ItemsPerRequest))
         {
@@ -210,7 +227,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 }
                 catch (Exception e)
                 {
-                    ConsoleRewriteLine($"App token task failed: {e.GetType()} {e.Message}");
+                    AnsiConsole.WriteLine($"App token task failed: {e.GetType()} {e.Message}");
 
                     await AwaitReconnectIfDisconnected();
                 }
@@ -226,7 +243,9 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             tokensDeniedCount += tokens.AppTokensDenied.Count;
             tokensNonZeroCount += tokens.AppTokens.Count(x => x.Value > 0);
 
-            ConsoleRewriteLine($"App tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
+            progressTokens.Value += chunk.Length;
+
+            //ConsoleRewriteLine($"App tokens granted: {tokensCount} - Denied: {tokensDeniedCount} - Non-zero: {tokensNonZeroCount}");
 
             foreach (var (key, value) in tokens.AppTokens)
             {
@@ -239,13 +258,13 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             }
         }
 
-        Console.WriteLine();
+        progressTokens.StopTask();
 
         if (appInfoRequests.Count > 0)
         {
-            Console.WriteLine();
+            progress.MaxValue = appInfoRequests.Count;
+            progress.StartTask();
 
-            var loops = 0;
             var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = ItemsPerRequest };
             var alreadySeen = new HashSet<uint>();
@@ -285,8 +304,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             foreach (var chunk in appInfoRequests.AsEnumerable().Reverse().Chunk(ItemsPerRequest))
             {
-                ConsoleRewriteLine($"App info request {++loops} of {total} - {payload.Depots.Count} depot keys - waiting for appinfo...");
-
                 AsyncJobMultiple<PICSProductInfoCallback>.ResultSet appInfo = null;
 
                 for (var retry = 3; retry > 0; retry--)
@@ -300,7 +317,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     }
                     catch (Exception e)
                     {
-                        ConsoleRewriteLine($"App info task failed: {e.GetType()} {e.Message}");
+                        AnsiConsole.WriteLine($"App info task failed: {e.GetType()} {e.Message}");
 
                         await AwaitReconnectIfDisconnected();
                     }
@@ -316,6 +333,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 {
                     continue;
                 }
+
+                progress.Value += chunk.Length;
 
                 var depotsToRequest = new HashSet<(uint DepotID, uint AppID)>();
 
@@ -397,8 +416,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                         if (depotKeysRequested++ % 15 == 0)
                         {
                             await CheckFinishedDepotKeyRequests();
-
-                            ConsoleRewriteLine($"App info request {loops} of {total} - {payload.Depots.Count} depot keys ({depotKeysRequested} requested, {depotKeysFailed} failed, {allKeyRequests.Count} waiting, {depotsToRequest.Count - sentKeyRequests} to send)");
                         }
                     }
                 }
@@ -411,8 +428,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             if (allKeyRequests.Count > 0)
             {
-                ConsoleRewriteLine($"{total} app info requests done - {payload.Depots.Count} depot keys ({depotKeysRequested} requested, {depotKeysFailed} failed, {allKeyRequests.Count} waiting) - this might take a while...");
-
                 try
                 {
                     await Task.WhenAll(allKeyRequests.Select(x => x.ToTask()));
@@ -425,16 +440,13 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 await CheckFinishedDepotKeyRequests();
             }
 
-            ConsoleRewriteLine($"{total} app info requests done - {payload.Depots.Count} depot keys ({depotKeysRequested} requested, {depotKeysFailed} failed)");
+            if (depotKeysRequested > 0)
+            {
+                AnsiConsole.MarkupLine($"Requested [green]{depotKeysRequested}[/] depot keys [gray]({depotKeysFailed} failed)[/]");
+            }
         }
 
-        Console.WriteLine();
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"Sub tokens: {payload.Subs.Count}");
-        Console.WriteLine($"App tokens: {payload.Apps.Count}");
-        Console.WriteLine($"Depot keys: {payload.Depots.Count}");
-        Console.ResetColor();
+        progress.StopTask();
     }
 
     private static async Task AwaitReconnectIfDisconnected()
@@ -445,16 +457,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             return;
         }
 
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Red;
-        await Console.Error.WriteLineAsync("[!] Disconnected from Steam while requesting, will continue after logging in again.");
-        Console.ResetColor();
+        AnsiConsole.MarkupLine("[red]Disconnected from Steam while requesting, will continue after logging in again.[/]");
 
         await Program.ReconnectEvent.Task;
-    }
-
-    private static void ConsoleRewriteLine(string text)
-    {
-        Console.Write($"\r{new string(' ', Console.WindowWidth - 1)}\r{text}");
     }
 }

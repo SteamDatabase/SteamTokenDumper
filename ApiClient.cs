@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Spectre.Console;
 
 #pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
@@ -40,7 +41,7 @@ internal sealed class ApiClient : IDisposable
     {
         if (config.DumpPayload)
         {
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
 
             var payloadDump = new PayloadDump(payload);
             var file = Path.Combine(Program.AppPath, "SteamTokenDumper.payload.json");
@@ -53,17 +54,17 @@ internal sealed class ApiClient : IDisposable
                 }).PayloadDump);
                 await File.WriteAllBytesAsync(file, json);
 
-                Console.WriteLine($"Written payload dump to '{Path.GetFileName(file)}'. Modifying this file will not do anything.");
+                AnsiConsole.WriteLine($"Written payload dump to '{Path.GetFileName(file)}'. Modifying this file will not do anything.");
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Failed to write payload dump: {e}");
+                AnsiConsole.WriteLine($"Failed to write payload dump: {e}");
             }
         }
 
         if (config.VerifyBeforeSubmit)
         {
-            Console.WriteLine();
+            AnsiConsole.WriteLine();
 
             // Read any buffered keys so it doesn't auto submit
             while (Console.KeyAvailable)
@@ -71,13 +72,13 @@ internal sealed class ApiClient : IDisposable
                 Console.ReadKey(true);
             }
 
-            Console.WriteLine("Press any key to continue submission...");
+            AnsiConsole.WriteLine("Press any key to continue submission...");
             Console.ReadKey(true);
         }
 
-        Console.WriteLine();
-        Console.WriteLine("Submitting tokens to SteamDB...");
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
+        AnsiConsole.WriteLine("Submitting tokens to SteamDB...");
+        AnsiConsole.WriteLine();
 
         var postData = JsonSerializer.Serialize(payload, PayloadJsonContext.Default.Payload);
 

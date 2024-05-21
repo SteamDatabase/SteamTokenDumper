@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
+using Spectre.Console;
 
 namespace SteamTokenDumper;
 
@@ -63,7 +63,7 @@ internal sealed class Configuration
                     {
                         if (!uint.TryParse(id, CultureInfo.InvariantCulture, out var appid))
                         {
-                            await Console.Error.WriteLineAsync($"Id '{id}' in 'SkipAppIds' is not a positive integer.");
+                            AnsiConsole.MarkupLineInterpolated($"[red]Id '{id}' in 'SkipAppIds' is not a positive integer.[/]");
                             continue;
                         }
 
@@ -72,37 +72,34 @@ internal sealed class Configuration
 
                     break;
                 default:
-                    await Console.Error.WriteLineAsync($"Unknown option '{option[0]}'");
+                    AnsiConsole.MarkupLineInterpolated($"[red]Unknown option '{option[0]}'[/]");
                     break;
             }
         }
 
         if (RememberLogin)
         {
-            Console.WriteLine("Will remember your login.");
+            AnsiConsole.WriteLine("Will remember your login.");
         }
 
         if (SkipAutoGrant)
         {
-            Console.WriteLine("Will skip auto granted packages.");
+            AnsiConsole.WriteLine("Will skip auto granted packages.");
         }
 
         if (DumpPayload)
         {
-            Console.WriteLine("Will dump payload.");
+            AnsiConsole.WriteLine("Will dump payload.");
         }
 
-        if (VerifyBeforeSubmit)
+        if (!VerifyBeforeSubmit)
         {
-            Console.WriteLine("Will ask for confirmation before sending results.");
+            AnsiConsole.WriteLine("Will not ask for confirmation before sending results.");
         }
 
         if (SkipApps.Count > 0)
         {
-            Console.WriteLine();
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Console.WriteLine($"Will skip these appids: {string.Join(", ", SkipApps)}");
-            Console.ResetColor();
+            AnsiConsole.MarkupLine($"Will skip these appids: [yellow]{string.Join(", ", SkipApps)}[/]");
         }
     }
 }

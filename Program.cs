@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.JsonWebTokens;
 using QRCoder;
+using Spectre.Console;
 using SteamKit2;
 using SteamKit2.Authentication;
 
@@ -49,7 +50,7 @@ internal static class Program
     {
         WindowsDisableConsoleQuickEdit.Disable();
 
-        Console.Title = "Steam token dumper for SteamDB";
+        Console.Title = "SteamDB Token Dumper";
 
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
@@ -67,7 +68,7 @@ internal static class Program
 
             if (File.Exists(sentryHashFile))
             {
-                Console.WriteLine("Deleting stored credentials from previous token dumper version.");
+                AnsiConsole.WriteLine("Deleting stored credentials from previous token dumper version.");
 
                 File.Delete(sentryHashFile);
                 File.Delete(RememberCredentialsFile);
@@ -77,33 +78,37 @@ internal static class Program
         {
             // don't care
         }
+        
+        AnsiConsole.Write(new FigletText("SteamDB").Color(Color.BlueViolet));
 
-        Console.WriteLine();
-        Console.ForegroundColor = ConsoleColor.Blue;
-        Console.WriteLine("[>] Read https://steamdb.info/tokendumper/ before using this");
-        Console.WriteLine();
-        Console.BackgroundColor = ConsoleColor.Yellow;
-        Console.ForegroundColor = ConsoleColor.Black;
-        Console.WriteLine("[>] If you are in a closed or limited beta, have a non disclosure agreement, ");
-        Console.WriteLine("[>] or otherwise do not want to leak private information, do not use this program.");
-        Console.ResetColor();
-        Console.WriteLine();
+        AnsiConsole.Write(
+            new Panel(new Markup("Read [link]https://steamdb.info/tokendumper/[/] before using this\n\nTake a look at the '[u]SteamTokenDumper.config.ini[/]' file for possible options.", new Style(Color.Blue)))
+                .BorderColor(Color.BlueViolet)
+                .RoundedBorder()
+        );
+        
+        AnsiConsole.Write(
+            new Panel(new Text("If you are in a closed or limited beta, have a non disclosure agreement,\nor otherwise do not want to leak private information, do not use this program.", new Style(Color.Yellow)))
+                .BorderColor(Color.GreenYellow)
+                .RoundedBorder()
+        );
 
-        Console.WriteLine("[>] Take a look at the 'SteamTokenDumper.config.ini' file for possible options.");
-        Console.WriteLine();
+        AnsiConsole.WriteLine();
 
         await ReadConfiguration();
 
-        if (Configuration.UserConsentBeforeRun && !CheckUserContinue())
+        AnsiConsole.WriteLine();
+
+        if (Configuration.UserConsentBeforeRun && !AnsiConsole.Confirm("Are you sure you want to continue?", false))
         {
-            Console.WriteLine("Press any key to exit...");
+            AnsiConsole.WriteLine("Press any key to exit...");
             Console.ReadKey();
             return;
         }
 
         if (!await ApiClient.IsUpToDate())
         {
-            Console.WriteLine("Press any key to exit...");
+            AnsiConsole.WriteLine("Press any key to exit...");
             Console.ReadKey();
             return;
         }
@@ -112,6 +117,8 @@ internal static class Program
 
         if (!Configuration.SkipAutoGrant)
         {
+            AnsiConsole.WriteLine();
+
             try
             {
                 SteamClientData.ReadFromSteamClient(Payload, KnownDepotIds);
@@ -145,25 +152,25 @@ internal static class Program
             Console.ResetColor();
             Console.WriteLine();
 
-            Console.Write("Enter your Steam username: ");
-            savedCredentials.Username = ReadUserInput(true);
+            savedCredentials.Username = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam username:")
+            {
+                AllowEmpty = true
+            });
 
             if (string.IsNullOrEmpty(savedCredentials.Username))
             {
                 Console.WriteLine("Doing an anonymous dump.");
 
-                var random = new Random();
-                Payload.SteamID = new SteamID((uint)random.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
+                Payload.SteamID = new SteamID((uint)Random.Shared.Next(), EUniverse.Public, EAccountType.AnonUser).Render();
 
                 await ApiClient.SendTokens(Payload, Configuration);
             }
             else if (savedCredentials.Username != "anonymous" && savedCredentials.Username != "qr")
             {
-                do
+                pass = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam password:")
                 {
-                    Console.Write("Enter your Steam password: ");
-                    pass = ReadUserInput();
-                } while (string.IsNullOrEmpty(pass));
+                    IsSecret = true
+                });
 
                 InitializeSteamKit();
             }
@@ -192,7 +199,7 @@ internal static class Program
         catch (Exception e)
         {
             Console.ForegroundColor = ConsoleColor.Red;
-            await Console.Error.WriteLineAsync($"Failed to read config: {e}");
+            await Console.Error.WriteLineAsync($"Failed to read config: {e.Message}");
             Console.ResetColor();
         }
 
@@ -258,46 +265,23 @@ internal static class Program
         }
     }
 
-    private static bool CheckUserContinue()
-    {
-        bool accepted;
-        bool cancel;
-
-        do
-        {
-            Console.Write("Are you sure you want to continue? [y/N] ");
-            var response = Console.ReadLine();
-
-            cancel = string.IsNullOrEmpty(response) || char.ToUpperInvariant(response[0]) == 'N';
-            accepted = !cancel && char.ToUpperInvariant(response[0]) == 'Y';
-        }
-        while (!cancel && !accepted);
-
-        return accepted;
-    }
-
     private static void ReadCredentialsAgain()
     {
         Console.WriteLine();
         Console.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
         Console.WriteLine();
 
-        do
-        {
-            Console.Write("Enter your Steam username: ");
-            savedCredentials.Username = ReadUserInput(true);
-        } while (string.IsNullOrEmpty(savedCredentials.Username));
+        savedCredentials.Username = AnsiConsole.Ask<string>("Enter your Steam username:");
 
         if (savedCredentials.Username == "anonymous" || savedCredentials.Username == "qr")
         {
             return;
         }
 
-        do
+        pass = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam password:")
         {
-            Console.Write("Enter your Steam password: ");
-            pass = ReadUserInput();
-        } while (string.IsNullOrEmpty(pass));
+            IsSecret = true
+        });
     }
 
     private static void InitializeSteamKit()
@@ -326,43 +310,6 @@ internal static class Program
         {
             manager.RunWaitAllCallbacks(TimeSpan.FromSeconds(2));
         }
-    }
-
-    private static string ReadUserInput(bool showFirstChar = false)
-    {
-        var password = string.Empty;
-        var info = Console.ReadKey(true);
-
-        while (info.Key != ConsoleKey.Enter && info.Key != ConsoleKey.Tab)
-        {
-            if (info.Key != ConsoleKey.Backspace && info.KeyChar != 0)
-            {
-                if (showFirstChar && password.Length < 2)
-                {
-                    Console.Write(info.KeyChar.ToString());
-                }
-                else
-                {
-                    Console.Write("*");
-                }
-
-                password += info.KeyChar;
-            }
-            else if (info.Key == ConsoleKey.Backspace && password.Length > 0)
-            {
-                password = password[..^1];
-                var pos = Console.CursorLeft;
-                Console.SetCursorPosition(pos - 1, Console.CursorTop);
-                Console.Write(" ");
-                Console.SetCursorPosition(pos - 1, Console.CursorTop);
-            }
-
-            info = Console.ReadKey(true);
-        }
-
-        Console.WriteLine();
-
-        return password;
     }
 
     private static async void OnConnected(SteamClient.ConnectedCallback callback)

@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using Microsoft.Win32;
+using Spectre.Console;
 using ValveKeyValue;
 
 #pragma warning disable CA1031 // Do not catch general exception types
@@ -12,48 +13,62 @@ internal static class SteamClientData
 {
     public static void ReadFromSteamClient(Payload payload, KnownDepotIds knownDepotIds)
     {
-        Console.WriteLine();
-        Console.WriteLine("Trying to read tokens from Steam client files");
+        var table = new Table
+        {
+            Title = new("Steam client"),
+            Border = TableBorder.Rounded
+        };
 
-        var steamLocation = GetSteamPath();
+        AnsiConsole.Live(table)
+            .Start(ctx =>
+            {
+                table.AddColumn("Reading tokens from Steam client files");
 
-        if (steamLocation == default)
-        {
-            Console.WriteLine("Did not find Steam client.");
-            return;
-        }
+                var steamLocation = GetSteamPath();
 
-        Console.WriteLine($"Found Steam at {steamLocation}");
+                if (steamLocation == default)
+                {
+                    table.AddRow("Did not find Steam client.");
+                    return;
+                }
 
-        try
-        {
-            ReadAppInfo(payload, Path.Join(steamLocation, "appcache", "appinfo.vdf"));
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine($"Failed to parse appinfo: {e}");
-        }
+                table.AddRow($"Found Steam at {steamLocation}");
+                ctx.Refresh();
 
-        try
-        {
-            ReadPackageInfo(payload, Path.Join(steamLocation, "appcache", "packageinfo.vdf"));
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine($"Failed to parse packageinfo: {e}");
-        }
+                try
+                {
+                    ReadAppInfo(table, payload, Path.Join(steamLocation, "appcache", "appinfo.vdf"));
+                }
+                catch (Exception e)
+                {
+                    table.AddRow($"Failed to parse appinfo: {e}");
+                }
 
-        try
-        {
-            ReadDepotKeys(payload, knownDepotIds, Path.Join(steamLocation, "config", "config.vdf"));
-        }
-        catch (Exception e)
-        {
-            Console.Error.WriteLine($"Failed to parse config: {e}");
-        }
+                ctx.Refresh();
+
+                try
+                {
+                    ReadPackageInfo(table, payload, Path.Join(steamLocation, "appcache", "packageinfo.vdf"));
+                }
+                catch (Exception e)
+                {
+                    table.AddRow($"Failed to parse packageinfo: {e}");
+                }
+
+                ctx.Refresh();
+
+                try
+                {
+                    ReadDepotKeys(table, payload, knownDepotIds, Path.Join(steamLocation, "config", "config.vdf"));
+                }
+                catch (Exception e)
+                {
+                    table.AddRow($"Failed to parse config: {e}");
+                }
+            });
     }
 
-    private static void ReadAppInfo(Payload payload, string filename)
+    private static void ReadAppInfo(Table table, Payload payload, string filename)
     {
         using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new BinaryReader(fs);
@@ -89,10 +104,10 @@ internal static class SteamClientData
             fs.Position = nextOffset;
         } while (true);
 
-        Console.WriteLine($"Got {payload.Apps.Count} app tokens from appinfo.vdf");
+        table.AddRow($"Got {payload.Apps.Count} app tokens from appinfo.vdf");
     }
 
-    private static void ReadPackageInfo(Payload payload, string filename)
+    private static void ReadPackageInfo(Table table, Payload payload, string filename)
     {
         using var fs = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
         using var reader = new BinaryReader(fs);
@@ -100,7 +115,7 @@ internal static class SteamClientData
 
         if (magic == 0x06_56_55_27)
         {
-            Console.WriteLine("Old Steam client has no package tokens in packageinfo.vdf, skipping");
+            table.AddRow("Old Steam client has no package tokens in packageinfo.vdf, skipping");
             return;
         }
 
@@ -134,10 +149,10 @@ internal static class SteamClientData
             deserializer.Deserialize(fs);
         } while (true);
 
-        Console.WriteLine($"Got {payload.Subs.Count} package tokens from packageinfo.vdf");
+        table.AddRow($"Got {payload.Subs.Count} package tokens from packageinfo.vdf");
     }
 
-    private static void ReadDepotKeys(Payload payload, KnownDepotIds knownDepotIds, string filename)
+    private static void ReadDepotKeys(Table table, Payload payload, KnownDepotIds knownDepotIds, string filename)
     {
         KVObject data;
 
@@ -174,7 +189,7 @@ internal static class SteamClientData
             }
         }
 
-        Console.WriteLine($"Got {depots.Count()} depot keys from config.vdf");
+        table.AddRow($"Got {depots.Count()} depot keys from config.vdf");
     }
 
     private static string GetSteamPath()
