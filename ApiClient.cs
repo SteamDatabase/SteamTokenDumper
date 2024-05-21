@@ -90,6 +90,26 @@ internal sealed class ApiClient : IDisposable
             var output = await result.Content.ReadAsStringAsync();
             output = output.Trim();
 
+            if (!result.IsSuccessStatusCode)
+            {
+                AnsiConsole.Write(
+                    new Panel(new Text($"Failed to submit tokens to SteamDB, received status code: {(int)result.StatusCode} ({result.ReasonPhrase})", new Style(Color.Red)))
+                        .BorderColor(Color.Red)
+                        .RoundedBorder()
+                );
+            }
+
+            var statusCode = (int)result.StatusCode;
+
+            if (result.StatusCode == HttpStatusCode.TooManyRequests)
+            {
+                output = "You got rate limited, please try again later.";
+            }
+            else if (statusCode < 200 || statusCode >= 500)
+            {
+                output = $"Something went wrong (HTTP {statusCode}).";
+            }
+
             AnsiConsole.Write(
                 new Panel(new Text(output, new Style(result.IsSuccessStatusCode ? Color.CadetBlue : Color.Red)))
                     .BorderColor(result.IsSuccessStatusCode ? Color.Blue : Color.Red)
@@ -111,8 +131,6 @@ internal sealed class ApiClient : IDisposable
             {
                 // don't care
             }
-
-            result.EnsureSuccessStatusCode();
 
             return true;
         }
@@ -194,7 +212,7 @@ internal sealed class ApiClient : IDisposable
                 list.Add(uint.Parse(line, CultureInfo.InvariantCulture));
             }
 
-            return [..list];
+            return [.. list];
         }
         catch (Exception e)
         {
