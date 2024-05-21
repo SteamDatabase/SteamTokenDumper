@@ -99,7 +99,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             {
                 try
                 {
-                    var infoTask = steamApps.PICSGetProductInfo(Enumerable.Empty<PICSRequest>(), chunk);
+                    var infoTask = steamApps.PICSGetProductInfo([], chunk);
                     infoTask.Timeout = Timeout;
                     info = await infoTask;
                     break;
@@ -203,7 +203,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             {
                 try
                 {
-                    var tokensTask = steamApps.PICSGetAccessTokens(chunk, Enumerable.Empty<uint>());
+                    var tokensTask = steamApps.PICSGetAccessTokens(chunk, []);
                     tokensTask.Timeout = Timeout;
                     tokens = await tokensTask;
                     break;
@@ -293,7 +293,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 {
                     try
                     {
-                        var appJob = steamApps.PICSGetProductInfo(chunk, Enumerable.Empty<PICSRequest>());
+                        var appJob = steamApps.PICSGetProductInfo(chunk, []);
                         appJob.Timeout = Timeout;
                         appInfo = await appJob;
                         break;
