@@ -52,7 +52,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
     public async Task ProcessPackages(List<PICSRequest> packages)
     {
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine($"Licenses: [green]{packages.Count}[/] [gray]({packages.Count(x => x.AccessToken != 0)} of them have a token)[/]");
+        AnsiConsole.MarkupLine($"Licenses: [green]{packages.Count}[/] - Package tokens: [green]{packages.Count(x => x.AccessToken != 0)}[/]");
 
         try
         {
@@ -79,11 +79,9 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     await Request(progressApps, progressTokens, progressDepots, apps, depots);
                 });
 
-            AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"Sub tokens: [green]{payload.Subs.Count}[/]");
             AnsiConsole.MarkupLine($"App tokens: [green]{payload.Apps.Count}[/]");
             AnsiConsole.MarkupLine($"Depot keys: [green]{payload.Depots.Count}[/]");
-            AnsiConsole.WriteLine();
         }
         catch (Exception e)
         {

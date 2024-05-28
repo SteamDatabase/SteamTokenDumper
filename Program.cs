@@ -143,6 +143,8 @@ internal static class Program
                     .RoundedBorder()
             );
 
+            AnsiConsole.WriteLine();
+
             InitializeSteamKit();
         }
         else
@@ -152,6 +154,8 @@ internal static class Program
                     .BorderColor(Color.Green)
                     .RoundedBorder()
             );
+
+            AnsiConsole.WriteLine();
 
             savedCredentials.Username = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam username:")
             {

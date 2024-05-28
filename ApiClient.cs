@@ -74,76 +74,80 @@ internal sealed class ApiClient : IDisposable
                 Console.ReadKey(true);
             }
 
+            AnsiConsole.WriteLine();
             AnsiConsole.WriteLine("Press any key to continue submission...");
             Console.ReadKey(true);
         }
 
-        AnsiConsole.WriteLine();
-        AnsiConsole.WriteLine("Submitting tokens to SteamDB...");
+        var returnValue = false;
 
-        var postData = JsonSerializer.Serialize(payload, PayloadJsonContext.Default.Payload);
-
-        try
-        {
-            using var content = new StringContent(postData, Encoding.UTF8, "application/json");
-            var result = await HttpClient.PostAsync($"{Endpoint}/submit", content);
-            var output = await result.Content.ReadAsStringAsync();
-            output = output.Trim();
-
-            if (!result.IsSuccessStatusCode)
+        await AnsiConsole.Status()
+            .StartAsync("Submitting tokens to SteamDB...", async ctx =>
             {
-                AnsiConsole.Write(
-                    new Panel(new Text($"Failed to submit tokens to SteamDB, received status code: {(int)result.StatusCode} ({result.ReasonPhrase})", new Style(Color.Red)))
-                        .BorderColor(Color.Red)
-                        .RoundedBorder()
-                );
-            }
+                var postData = JsonSerializer.Serialize(payload, PayloadJsonContext.Default.Payload);
 
-            var statusCode = (int)result.StatusCode;
-
-            if (result.StatusCode == HttpStatusCode.TooManyRequests)
-            {
-                output = "You got rate limited, please try again later.";
-            }
-            else if (statusCode < 200 || statusCode >= 500)
-            {
-                output = $"Something went wrong (HTTP {statusCode}).";
-            }
-
-            AnsiConsole.Write(
-                new Panel(new Text(output, new Style(result.IsSuccessStatusCode ? Color.CadetBlue : Color.Red)))
-                    .BorderColor(result.IsSuccessStatusCode ? Color.Blue : Color.Red)
-                    .RoundedBorder()
-            );
-
-            try
-            {
-                output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n\n---\n\n".Replace("\r", "", StringComparison.Ordinal);
-
-                if (OperatingSystem.IsWindows())
+                try
                 {
-                    output = output.Replace("\n", "\r\n", StringComparison.Ordinal);
+                    using var content = new StringContent(postData, Encoding.UTF8, "application/json");
+                    var result = await HttpClient.PostAsync($"{Endpoint}/submit", content);
+                    var output = await result.Content.ReadAsStringAsync();
+                    output = output.Trim();
+
+                    if (!result.IsSuccessStatusCode)
+                    {
+                        AnsiConsole.Write(
+                            new Panel(new Text($"Failed to submit tokens to SteamDB, received status code: {(int)result.StatusCode} ({result.ReasonPhrase})", new Style(Color.Red)))
+                                .BorderColor(Color.Red)
+                                .RoundedBorder()
+                        );
+                    }
+
+                    var statusCode = (int)result.StatusCode;
+
+                    if (result.StatusCode == HttpStatusCode.TooManyRequests)
+                    {
+                        output = "You got rate limited, please try again later.";
+                    }
+                    else if (statusCode < 200 || statusCode >= 500)
+                    {
+                        output = $"Something went wrong (HTTP {statusCode}).";
+                    }
+
+                    AnsiConsole.Write(
+                        new Panel(new Text(output, new Style(result.IsSuccessStatusCode ? Color.CadetBlue : Color.Red)))
+                            .BorderColor(result.IsSuccessStatusCode ? Color.Blue : Color.Red)
+                            .RoundedBorder()
+                    );
+
+                    try
+                    {
+                        output = $"Dump submitted on {DateTime.Now}\nSteamID used: {payload.SteamID}\n\n{output}\n\n---\n\n".Replace("\r", "", StringComparison.Ordinal);
+
+                        if (OperatingSystem.IsWindows())
+                        {
+                            output = output.Replace("\n", "\r\n", StringComparison.Ordinal);
+                        }
+
+                        await File.AppendAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
+                    }
+                    catch (Exception)
+                    {
+                        // don't care
+                    }
+
+                    returnValue = true;
                 }
+                catch (Exception e)
+                {
+                    AnsiConsole.Write(
+                        new Panel(new Text($"Failed to submit tokens to SteamDB: {e}", new Style(Color.Red)))
+                            .BorderColor(Color.Red)
+                            .RoundedBorder()
+                    );
+                }
+            });
 
-                await File.AppendAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
-            }
-            catch (Exception)
-            {
-                // don't care
-            }
-
-            return true;
-        }
-        catch (Exception e)
-        {
-            AnsiConsole.Write(
-                new Panel(new Text($"Failed to submit tokens to SteamDB: {e}", new Style(Color.Red)))
-                    .BorderColor(Color.Red)
-                    .RoundedBorder()
-            );
-        }
-
-        return false;
+        return returnValue;
     }
 
     public async Task<bool> IsUpToDate()
