@@ -30,6 +30,8 @@ internal static class Program
 
     private static bool isRunning;
     private static bool isExiting;
+    private static bool isAskingForInput;
+    private static bool suggestedQrCode;
 
     private static string pass;
     private static SavedCredentials savedCredentials = new();
@@ -78,7 +80,7 @@ internal static class Program
         {
             // don't care
         }
-        
+
         AnsiConsole.Write(new FigletText("SteamDB").Color(Color.BlueViolet));
 
         AnsiConsole.Write(
@@ -86,7 +88,7 @@ internal static class Program
                 .BorderColor(Color.BlueViolet)
                 .RoundedBorder()
         );
-        
+
         AnsiConsole.Write(
             new Panel(new Text("If you are in a closed or limited beta, have a non disclosure agreement,\nor otherwise do not want to leak private information, do not use this program.", new Style(Color.Yellow)))
                 .BorderColor(Color.GreenYellow)
@@ -149,6 +151,8 @@ internal static class Program
         }
         else
         {
+            suggestedQrCode = true;
+
             AnsiConsole.Write(
                 new Panel(new Markup($"Logging in means this program can do a thorough dump, as getting tokens from Steam files only works for installed games.\n\nEnter \"[bold]qr[/]\" into the username field if you would like to scan a QR code with your Steam mobile app.", new Style(Color.Green)))
                     .BorderColor(Color.Green)
@@ -286,21 +290,32 @@ internal static class Program
 
     private static void ReadCredentialsAgain()
     {
-        AnsiConsole.WriteLine();
-        AnsiConsole.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
-        AnsiConsole.WriteLine();
+        isAskingForInput = true;
 
-        savedCredentials.Username = AnsiConsole.Ask<string>("Enter your Steam username:");
+        steamClient.Disconnect();
 
-        if (savedCredentials.Username == "anonymous" || savedCredentials.Username == "qr")
+        if (!suggestedQrCode)
         {
-            return;
+            suggestedQrCode = true;
+
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine("Enter \"qr\" into the username field if you would like to scan a QR code with your Steam mobile app.");
         }
 
-        pass = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam password:")
+        AnsiConsole.WriteLine();
+
+        savedCredentials.Username = AnsiConsole.Ask("Enter your Steam username:", savedCredentials.Username ?? string.Empty);
+
+        if (savedCredentials.Username is not "anonymous" and not "qr")
         {
-            IsSecret = true
-        });
+            pass = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam password:")
+            {
+                IsSecret = true
+            });
+        }
+
+        isAskingForInput = false;
+        steamClient.Connect();
     }
 
     private static void InitializeSteamKit()
@@ -343,29 +358,50 @@ internal static class Program
 
         if (authSession == null)
         {
-            if (savedCredentials.Username == "qr")
+            try
             {
-                var qrAuthSession = await steamClient.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
+                if (savedCredentials.Username == "qr")
                 {
-                    DeviceFriendlyName = nameof(SteamTokenDumper),
-                });
+                    var qrAuthSession = await steamClient.Authentication.BeginAuthSessionViaQRAsync(new AuthSessionDetails
+                    {
+                        DeviceFriendlyName = nameof(SteamTokenDumper),
+                    });
 
-                qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession);
+                    qrAuthSession.ChallengeURLChanged = () => DrawQRCode(qrAuthSession);
 
-                DrawQRCode(qrAuthSession);
+                    DrawQRCode(qrAuthSession);
 
-                authSession = qrAuthSession;
+                    authSession = qrAuthSession;
+                }
+                else if (savedCredentials.RefreshToken == null)
+                {
+                    authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
+                    {
+                        Password = pass,
+                        Username = savedCredentials.Username,
+                        IsPersistentSession = Configuration.RememberLogin,
+                        DeviceFriendlyName = nameof(SteamTokenDumper),
+                        Authenticator = new ConsoleAuthenticator(),
+                    });
+                }
             }
-            else if (savedCredentials.RefreshToken == null)
+            catch (AuthenticationException e)
             {
-                authSession = await steamClient.Authentication.BeginAuthSessionViaCredentialsAsync(new AuthSessionDetails
-                {
-                    Password = pass,
-                    Username = savedCredentials.Username,
-                    IsPersistentSession = Configuration.RememberLogin,
-                    DeviceFriendlyName = nameof(SteamTokenDumper),
-                    Authenticator = new ConsoleAuthenticator(),
-                });
+                isAskingForInput = true;
+
+                AnsiConsole.Write(
+                    new Panel(new Text(
+                        e.Result == EResult.InvalidPassword ?
+                            "You have entered an invalid username or password." :
+                            $"Something went wrong trying to begin authentication ({e.Result})",
+                        new Style(Color.Red)))
+                        .BorderColor(Color.Red)
+                        .RoundedBorder()
+                );
+
+                ReadCredentialsAgain();
+
+                return;
             }
         }
 
@@ -410,7 +446,10 @@ internal static class Program
         const int QuietZone = 6;
         const int QuietZoneOffset = QuietZone / 2;
         var size = qrCodeData.ModuleMatrix.Count - QuietZone;
-        var canvas = new Canvas(size, size);
+        var canvas = new Canvas(size, size)
+        {
+            Scale = false,
+        };
 
         for (var y = 0; y < size; y++)
         {
@@ -437,6 +476,12 @@ internal static class Program
 
             AnsiConsole.WriteLine("Disconnected from Steam, exiting...");
 
+            return;
+        }
+
+        if (isAskingForInput || callback.UserInitiated)
+        {
+            AnsiConsole.WriteLine($"Disconnected from Steam, waiting for user input to finish...");
             return;
         }
 
@@ -479,6 +524,7 @@ internal static class Program
             || callback.Result == EResult.Expired
             || callback.Result == EResult.Revoked)
             {
+                isAskingForInput = true;
                 reconnectCount = 0;
 
                 if (savedCredentials.RefreshToken != null)
