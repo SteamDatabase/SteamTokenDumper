@@ -57,7 +57,7 @@ jobs:
       shell: sh
       run: |
         set -eu
-        sed --in-place "s/@STEAMDB_BUILD_TOKEN@/${STEAM_TOKEN_DUMPER_TOKEN}/" "ApiClient.cs"
+        sed --in-place=".bak" "s/@STEAMDB_BUILD_TOKEN@/${STEAM_TOKEN_DUMPER_TOKEN}/" "ApiClient.cs"
 
     # Publish
     - name: Publish
