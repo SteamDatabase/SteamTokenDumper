@@ -11,8 +11,6 @@ on:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
-
     strategy:
       fail-fast: false
       matrix:
@@ -23,13 +21,20 @@ jobs:
           variant: linux-arm64
         - os: ubuntu-latest
           variant: linux-x64
+
         - os: macos-latest
           variant: osx-arm64
         - os: macos-latest
           variant: osx-x64
+
         - os: windows-latest
           variant: win-x64
+        - os: windows-latest
+          variant: win-x86
+        - os: windows-latest
+          variant: win-arm64
 
+    name: ${{ matrix.variant }}
     runs-on: ${{ matrix.os }}
 
     steps:
@@ -115,23 +120,18 @@ jobs:
        set -eux
        mkdir release
 
-       CreateTar() {
-          cd "artifacts/$1/"
-          chmod +x SteamTokenDumper
-          tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file "../../release/$1.tar.gz" -- *
-          cd ../../
-       }
-
        for file in artifacts/*
        do
-          if [ "$file" != "SteamTokenDumper-win-x64" ]
+          if [[ "$file" =~ "SteamTokenDumper-win" ]]
           then
-            CreateTar "$(basename "$file")"
+            zip -9 --junk-paths "release/$file.zip" "artifacts/$file/*"
+          else
+            cd "artifacts/$file/"
+            chmod +x SteamTokenDumper
+            tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file "../../release/$file.tar.gz" -- *
+            cd ../../
           fi
        done
-
-       # Windows
-       zip -9 --junk-paths release/SteamTokenDumper-win-x64.zip artifacts/SteamTokenDumper-win-x64/*
 
     - name: Release
       uses: softprops/action-gh-release@v2
