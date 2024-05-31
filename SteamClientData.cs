@@ -213,6 +213,11 @@ internal static class SteamClientData
                 .Select(path => Path.Join(home, path))
                 .FirstOrDefault(steamPath => Directory.Exists(Path.Join(steamPath, "appcache")));
         }
+        else if (OperatingSystem.IsMacOS())
+        {
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            return Path.Join(home, "Steam");
+        }
 
         return default;
     }
