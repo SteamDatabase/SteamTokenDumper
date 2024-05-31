@@ -16,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
 
@@ -50,11 +50,15 @@ jobs:
     # Publish
     - name: Publish for Windows
       if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release --runtime win-x64 --self-contained --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true SteamTokenDumper.csproj
+      run: dotnet publish --configuration Release --runtime win-x64 --self-contained --output bin/SteamTokenDumper SteamTokenDumper.csproj
 
     - name: Publish for Linux
       if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true --output bin/SteamTokenDumper /p:PublishSingleFile=true /p:PublishTrimmed=true /p:IncludeNativeLibrariesForSelfExtract=true SteamTokenDumper.csproj
+      run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true --output bin/SteamTokenDumper SteamTokenDumper.csproj
+
+    - name: Publish for macOS arm64
+      if: matrix.os == 'macos-latest'
+      run: dotnet publish --configuration Release --runtime osx-arm64 --self-contained true --output bin/SteamTokenDumper SteamTokenDumper.csproj
 
     # Archive
     - name: Prepare archive on Windows
@@ -64,8 +68,8 @@ jobs:
         Set-StrictMode -Version Latest
         Get-Content LICENSE, release_license.txt | Set-Content bin\SteamTokenDumper\LICENSE.txt
 
-    - name: Prepare archive on Linux
-      if: matrix.os == 'ubuntu-latest'
+    - name: Prepare archive on nix
+      if: matrix.os != 'windows-latest'
       shell: sh
       run: |
         set -eu
@@ -86,6 +90,13 @@ jobs:
         name: SteamTokenDumper-linux-x64
         path: bin/SteamTokenDumper
 
+    - name: Upload macOS arm64
+      uses: actions/upload-artifact@v4
+      if: matrix.os == 'macos-latest'
+      with:
+        name: SteamTokenDumper-macos-arm64
+        path: bin/SteamTokenDumper
+
     # Attest
     - uses: actions/attest-build-provenance@v1
       if: matrix.os == 'windows-latest'
@@ -93,7 +104,7 @@ jobs:
         subject-path: 'bin/SteamTokenDumper/SteamTokenDumper.exe'
 
     - uses: actions/attest-build-provenance@v1
-      if: matrix.os == 'ubuntu-latest'
+      if: matrix.os != 'windows-latest'
       with:
         subject-path: 'bin/SteamTokenDumper/SteamTokenDumper'
 
@@ -116,14 +127,21 @@ jobs:
        set -eux
        mkdir release
 
+       # Windows
+       zip -9 --junk-paths release/SteamTokenDumper-windows.zip artifacts/SteamTokenDumper-windows-x64/*
+
        # Linux
+       # TODO: Make this a bash function if more nix targets are added
        cd artifacts/SteamTokenDumper-linux-x64/
        chmod +x SteamTokenDumper
        tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file ../../release/SteamTokenDumper-linux.tar.gz -- *
        cd ../../
 
-       # Windows
-       zip -9 --junk-paths release/SteamTokenDumper-windows.zip artifacts/SteamTokenDumper-windows-x64/*
+       # macOS arm64
+       cd artifacts/SteamTokenDumper-macos-arm64/
+       chmod +x SteamTokenDumper
+       tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file ../../release/SteamTokenDumper-macos-arm64.tar.gz -- *
+       cd ../../
 
     - name: Release
       uses: softprops/action-gh-release@v2
