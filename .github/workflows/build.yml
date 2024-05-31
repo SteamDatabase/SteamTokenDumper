@@ -16,7 +16,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+        - os: ubuntu-latest
+          variant: linux-arm
+        - os: ubuntu-latest
+          variant: linux-arm64
+        - os: ubuntu-latest
+          variant: linux-x64
+        - os: macos-latest
+          variant: osx-arm64
+        - os: macos-latest
+          variant: osx-x64
+        - os: windows-latest
+          variant: win-x64
 
     runs-on: ${{ matrix.os }}
 
@@ -38,8 +50,8 @@ jobs:
         Set-StrictMode -Version Latest
         (Get-Content "ApiClient.cs").Replace('@STEAMDB_BUILD_TOKEN@', "$env:STEAM_TOKEN_DUMPER_TOKEN") | Set-Content "ApiClient.cs"
 
-    - name: Prepare on Linux
-      if: matrix.os == 'ubuntu-latest'
+    - name: Prepare on nix
+      if: matrix.os != 'windows-latest'
       env:
         STEAM_TOKEN_DUMPER_TOKEN: ${{ secrets.STEAM_TOKEN_DUMPER_TOKEN }}
       shell: sh
@@ -48,17 +60,8 @@ jobs:
         sed --in-place "s/@STEAMDB_BUILD_TOKEN@/${STEAM_TOKEN_DUMPER_TOKEN}/" "ApiClient.cs"
 
     # Publish
-    - name: Publish for Windows
-      if: matrix.os == 'windows-latest'
-      run: dotnet publish --configuration Release --runtime win-x64 --self-contained --output bin/SteamTokenDumper SteamTokenDumper.csproj
-
-    - name: Publish for Linux
-      if: matrix.os == 'ubuntu-latest'
-      run: dotnet publish --configuration Release --runtime linux-x64 --self-contained true --output bin/SteamTokenDumper SteamTokenDumper.csproj
-
-    - name: Publish for macOS arm64
-      if: matrix.os == 'macos-latest'
-      run: dotnet publish --configuration Release --runtime osx-arm64 --self-contained true --output bin/SteamTokenDumper SteamTokenDumper.csproj
+    - name: Publish
+      run: dotnet publish --configuration Release --runtime ${{ matrix.variant }} --self-contained --output bin/SteamTokenDumper SteamTokenDumper.csproj
 
     # Archive
     - name: Prepare archive on Windows
@@ -76,25 +79,10 @@ jobs:
         cat LICENSE release_license.txt > bin/SteamTokenDumper/LICENSE.txt
 
     # Upload
-    - name: Upload Windows
+    - name: Upload
       uses: actions/upload-artifact@v4
-      if: matrix.os == 'windows-latest'
       with:
-        name: SteamTokenDumper-windows-x64
-        path: bin/SteamTokenDumper
-
-    - name: Upload Linux
-      uses: actions/upload-artifact@v4
-      if: matrix.os == 'ubuntu-latest'
-      with:
-        name: SteamTokenDumper-linux-x64
-        path: bin/SteamTokenDumper
-
-    - name: Upload macOS arm64
-      uses: actions/upload-artifact@v4
-      if: matrix.os == 'macos-latest'
-      with:
-        name: SteamTokenDumper-macos-arm64
+        name: SteamTokenDumper-${{ matrix.variant }}
         path: bin/SteamTokenDumper
 
     # Attest
@@ -127,21 +115,23 @@ jobs:
        set -eux
        mkdir release
 
+       CreateTar() {
+          cd "artifacts/$1/"
+          chmod +x SteamTokenDumper
+          tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file "../../release/$1.tar.gz" -- *
+          cd ../../
+       }
+
+       for file in artifacts/*
+       do
+          if [ "$file" != "SteamTokenDumper-win-x64" ]
+          then
+            CreateTar "$(basename "$file")"
+          fi
+       done
+
        # Windows
-       zip -9 --junk-paths release/SteamTokenDumper-windows.zip artifacts/SteamTokenDumper-windows-x64/*
-
-       # Linux
-       # TODO: Make this a bash function if more nix targets are added
-       cd artifacts/SteamTokenDumper-linux-x64/
-       chmod +x SteamTokenDumper
-       tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file ../../release/SteamTokenDumper-linux.tar.gz -- *
-       cd ../../
-
-       # macOS arm64
-       cd artifacts/SteamTokenDumper-macos-arm64/
-       chmod +x SteamTokenDumper
-       tar --use-compress-program 'gzip -9' --create --verbose --owner=0 --group=0 --file ../../release/SteamTokenDumper-macos-arm64.tar.gz -- *
-       cd ../../
+       zip -9 --junk-paths release/SteamTokenDumper-win-x64.zip artifacts/SteamTokenDumper-win-x64/*
 
     - name: Release
       uses: softprops/action-gh-release@v2
