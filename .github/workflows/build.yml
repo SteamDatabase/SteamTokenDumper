@@ -120,8 +120,10 @@ jobs:
        set -eux
        mkdir release
 
-       for file in artifacts/*
+       for fileWithPath in artifacts/*
        do
+          file=$(basename "$fileWithPath")
+
           if [[ "$file" =~ "SteamTokenDumper-win" ]]
           then
             zip -9 --junk-paths "release/$file.zip" "artifacts/$file/*"
