@@ -6,6 +6,7 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ internal sealed class ApiClient : IDisposable
 #pragma warning restore CA5386 // Avoid hardcoding SecurityProtocolType value
         HttpClient.DefaultRequestVersion = HttpVersion.Version30;
         HttpClient.Timeout = TimeSpan.FromMinutes(10);
-        HttpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Version} ({appVersion})");
+        HttpClient.DefaultRequestHeaders.Add("User-Agent", $"{nameof(SteamTokenDumper)} v{Version} ({RuntimeInformation.RuntimeIdentifier} {appVersion})");
     }
 
     public void Dispose()
