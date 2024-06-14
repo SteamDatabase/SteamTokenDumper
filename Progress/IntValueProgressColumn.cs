@@ -4,6 +4,9 @@ using Spectre.Console.Rendering;
 
 namespace SteamTokenDumper;
 
+/// <summary>
+/// A column showing the current value of a task.
+/// </summary>
 internal sealed class IntValueProgressColumn : ProgressColumn
 {
     /// <inheritdoc/>

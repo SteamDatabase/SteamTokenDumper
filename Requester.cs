@@ -62,10 +62,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     new ProgressBarColumn(),
                     new IntValueProgressColumn(),
                     new ElapsedTimeColumn(),
-                    new RemainingTimeColumn
-                    {
-                        Style = Color.Grey,
-                    },
+                    new RemainingTimeColumn(),
                     new SpinnerColumn(),
                 ])
                 .StartAsync(async ctx =>
