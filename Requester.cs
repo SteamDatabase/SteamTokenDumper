@@ -75,7 +75,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     var progressApps = ctx.AddTask("App info", autoStart: false, maxValue: 0);
                     var progressDepots = ctx.AddTask("Depot keys", autoStart: false, maxValue: 0);
 
-                    var (apps, depots) = await RequestPackageInfo(progressPackages, packages);
+                    var (apps, depots) = await RequestPackageInfo(progressPackages, progressApps, progressTokens, packages);
                     await Request(progressApps, progressTokens, progressDepots, apps, depots);
                 });
 
@@ -104,7 +104,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         }
     }
 
-    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(ProgressTask progress, List<PICSRequest> subInfoRequests)
+    private async Task<(HashSet<uint> Apps, HashSet<uint> Depots)> RequestPackageInfo(ProgressTask progress, ProgressTask progressApps, ProgressTask progressTokens, List<PICSRequest> subInfoRequests)
     {
         var apps = new HashSet<uint>();
         var depots = new HashSet<uint>();
@@ -176,6 +176,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             }
 
             progress.Value += chunk.Length;
+            progressApps.MaxValue = apps.Count;
+            progressTokens.MaxValue = apps.Count;
         }
 
         progress.StopTask();
@@ -243,6 +245,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             tokensDeniedCount += tokens.AppTokensDenied.Count;
             tokensNonZeroCount += tokens.AppTokens.Count(x => x.Value > 0);
 
+            progress.MaxValue -= tokens.AppTokensDenied.Count;
             progressTokens.Value += chunk.Length;
 
             foreach (var (key, value) in tokens.AppTokens)
