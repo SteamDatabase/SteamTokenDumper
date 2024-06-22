@@ -101,11 +101,16 @@ internal static class Program
 
         AnsiConsole.WriteLine();
 
-        if (Configuration.UserConsentBeforeRun && !AnsiConsole.Confirm("Are you sure you want to continue?", false))
+        if (Configuration.UserConsentBeforeRun)
         {
-            AnsiConsole.WriteLine("Press any key to exit...");
-            Console.ReadKey();
-            return;
+            SinkUnreadKeys();
+
+            if (!AnsiConsole.Confirm("Are you sure you want to continue?", false))
+            {
+                AnsiConsole.WriteLine("Press any key to exit...");
+                Console.ReadKey();
+                return;
+            }
         }
 
         if (!await ApiClient.IsUpToDate())
@@ -161,6 +166,8 @@ internal static class Program
 
             AnsiConsole.WriteLine();
 
+            SinkUnreadKeys();
+
             savedCredentials.Username = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam username:")
             {
                 AllowEmpty = true
@@ -189,11 +196,7 @@ internal static class Program
             }
         }
 
-        // Read any buffered keys so it doesn't auto exit
-        while (Console.KeyAvailable)
-        {
-            Console.ReadKey(true);
-        }
+        SinkUnreadKeys();
 
         AnsiConsole.WriteLine("Press any key to exit...");
         Console.ReadKey();
@@ -303,6 +306,8 @@ internal static class Program
         }
 
         AnsiConsole.WriteLine();
+
+        SinkUnreadKeys();
 
         savedCredentials.Username = AnsiConsole.Ask("Enter your Steam username:", savedCredentials.Username ?? string.Empty);
 
@@ -672,5 +677,13 @@ internal static class Program
         isExiting = true;
 
         steamUser.LogOff();
+    }
+
+    private static void SinkUnreadKeys()
+    {
+        while (Console.KeyAvailable)
+        {
+            Console.ReadKey(true);
+        }
     }
 }
