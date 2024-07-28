@@ -85,6 +85,8 @@ internal sealed class ApiClient : IDisposable
 
         var returnValue = false;
 
+        Ansi.Progress(Ansi.ProgressState.Indeterminate);
+
         await AnsiConsole.Status()
             .StartAsync("Submitting tokens to SteamDB...", async ctx =>
             {
@@ -150,6 +152,8 @@ internal sealed class ApiClient : IDisposable
                     );
                 }
             });
+
+        Ansi.Progress(Ansi.ProgressState.Hidden);
 
         return returnValue;
     }

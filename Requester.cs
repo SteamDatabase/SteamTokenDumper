@@ -76,6 +76,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     await Request(progressApps, progressTokens, progressDepots, apps, depots);
                 });
 
+            Ansi.Progress(Ansi.ProgressState.Hidden);
+
             AnsiConsole.MarkupLine($"Sub tokens: [green]{payload.Subs.Count}[/]");
             AnsiConsole.MarkupLine($"App tokens: [green]{payload.Apps.Count}[/]");
             AnsiConsole.MarkupLine($"Depot keys: [green]{payload.Depots.Count}[/]");
@@ -175,6 +177,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             progress.Value += chunk.Length;
             progressApps.MaxValue = apps.Count;
             progressTokens.MaxValue = apps.Count;
+
+            Ansi.Progress(progress);
         }
 
         progress.StopTask();
@@ -244,6 +248,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             progress.MaxValue -= tokens.AppTokensDenied.Count;
             progressTokens.Value += chunk.Length;
+
+            Ansi.Progress(progressTokens);
 
             foreach (var (key, value) in tokens.AppTokens)
             {
@@ -337,6 +343,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 }
 
                 progress.Value += chunk.Length;
+
+                Ansi.Progress(progress);
 
                 var depotsToRequest = new HashSet<(uint DepotID, uint AppID)>();
 
