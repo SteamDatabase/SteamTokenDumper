@@ -252,7 +252,7 @@ internal static class Program
         }
 
         var encryptedBytes = await File.ReadAllBytesAsync(RememberCredentialsFile);
-        var decryptedData = CryptoHelper.SymmetricDecrypt(encryptedBytes, EncryptionKey);
+        var decryptedData = SteamKit2.CryptoHelper.SymmetricDecrypt(encryptedBytes, EncryptionKey);
 
         savedCredentials = JsonSerializer.Deserialize(decryptedData, SavedCredentialsJsonContext.Default.SavedCredentials);
 
@@ -328,7 +328,11 @@ internal static class Program
         DebugLog.AddListener(new SteamKitLogger());
         DebugLog.Enabled = Configuration.Debug;
 
-        steamClient = new SteamClient("Dumper");
+        var config = SteamConfiguration.Create(b => b
+            .WithProtocolTypes(ProtocolTypes.WebSocket)
+        );
+
+        steamClient = new SteamClient(config, "Dumper");
         manager = new CallbackManager(steamClient);
 
         steamUser = steamClient.GetHandler<SteamUser>();
