@@ -24,7 +24,6 @@ internal static class Program
     private static SteamUser steamUser;
 
     private static bool licenseListReceived;
-    private static bool isRunning;
     private static bool isAskingForInput;
     private static bool suggestedQrCode;
     private static readonly CancellationTokenSource ExitToken = new();
@@ -335,15 +334,20 @@ internal static class Program
         manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
         manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
-        isRunning = true;
-
         AnsiConsole.WriteLine("Connecting to Steam...");
 
         steamClient.Connect();
 
-        while (isRunning)
+        try
         {
-            await manager.RunWaitCallbackAsync(ExitToken.Token);
+            while (!ExitToken.IsCancellationRequested)
+            {
+                await manager.RunWaitCallbackAsync(ExitToken.Token);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            //
         }
     }
 
@@ -473,8 +477,6 @@ internal static class Program
     {
         if (ExitToken.IsCancellationRequested)
         {
-            isRunning = false;
-
             AnsiConsole.WriteLine("Disconnected from Steam, exiting...");
 
             return;
@@ -559,7 +561,6 @@ internal static class Program
                         .RoundedBorder()
                 );
 
-                isRunning = false;
                 ExitToken.Cancel();
             }
 
