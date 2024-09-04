@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,12 +22,12 @@ internal static class Program
     private static CallbackManager manager;
 
     private static SteamUser steamUser;
-    private static IDisposable LicenseListCallback;
 
+    private static bool licenseListReceived;
     private static bool isRunning;
-    private static bool isExiting;
     private static bool isAskingForInput;
     private static bool suggestedQrCode;
+    private static readonly CancellationTokenSource ExitToken = new();
 
     private static string pass;
     private static SavedCredentials savedCredentials = new();
@@ -147,7 +145,7 @@ internal static class Program
 
             AnsiConsole.WriteLine();
 
-            InitializeSteamKit();
+            await InitializeSteamKit();
         }
         else
         {
@@ -183,11 +181,11 @@ internal static class Program
                     IsSecret = true
                 });
 
-                InitializeSteamKit();
+                await InitializeSteamKit();
             }
             else
             {
-                InitializeSteamKit();
+                await InitializeSteamKit();
             }
         }
 
@@ -318,7 +316,7 @@ internal static class Program
         steamClient.Connect();
     }
 
-    private static void InitializeSteamKit()
+    private static async Task InitializeSteamKit()
     {
         DebugLog.AddListener(new SteamKitLogger());
         DebugLog.Enabled = Configuration.Debug;
@@ -335,8 +333,7 @@ internal static class Program
         manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
         manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
         manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
-
-        LicenseListCallback = manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
+        manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
         isRunning = true;
 
@@ -346,7 +343,7 @@ internal static class Program
 
         while (isRunning)
         {
-            manager.RunWaitAllCallbacks(TimeSpan.FromSeconds(2));
+            await manager.RunWaitCallbackAsync(ExitToken.Token);
         }
     }
 
@@ -474,7 +471,7 @@ internal static class Program
 
     private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
-        if (isExiting)
+        if (ExitToken.IsCancellationRequested)
         {
             isRunning = false;
 
@@ -563,7 +560,7 @@ internal static class Program
                 );
 
                 isRunning = false;
-                isExiting = true;
+                ExitToken.Cancel();
             }
 
             return;
@@ -571,7 +568,7 @@ internal static class Program
 
         reconnectCount = 0;
 
-        if (LicenseListCallback == null)
+        if (licenseListReceived)
         {
             AnsiConsole.WriteLine("Logged on, continuing...");
 
@@ -588,7 +585,7 @@ internal static class Program
 
         if (steamid.AccountType == EAccountType.AnonUser)
         {
-            isExiting = true; // No reconnect support for anonymous accounts
+            ExitToken.Cancel(); // No reconnect support for anonymous accounts
 
             AnsiConsole.WriteLine("Logged on, requesting package for anonymous users...");
 
@@ -648,8 +645,12 @@ internal static class Program
 
     private static void OnLicenseList(SteamApps.LicenseListCallback licenseList)
     {
-        LicenseListCallback.Dispose();
-        LicenseListCallback = null;
+        if (licenseListReceived)
+        {
+            return;
+        }
+
+        licenseListReceived = true;
 
         var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), KnownDepotIds, Configuration);
         var packages = requester.ProcessLicenseList(licenseList);
@@ -673,7 +674,7 @@ internal static class Program
             await KnownDepotIds.SaveKnownDepotIds();
         }
 
-        isExiting = true;
+        await ExitToken.CancelAsync();
 
         steamUser.LogOff();
     }
