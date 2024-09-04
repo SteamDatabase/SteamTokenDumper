@@ -20,8 +20,6 @@ namespace SteamTokenDumper;
 
 internal static class Program
 {
-    private static byte[] EncryptionKey;
-
     private static SteamClient steamClient;
     private static CallbackManager manager;
 
@@ -56,9 +54,6 @@ internal static class Program
 
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
-
-        // This is not secure.
-        EncryptionKey = SHA256.HashData(Encoding.UTF8.GetBytes(string.Concat(nameof(SteamTokenDumper), SteamClientData.GetMachineGuid())));
 
         AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
         RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
@@ -252,7 +247,7 @@ internal static class Program
         }
 
         var encryptedBytes = await File.ReadAllBytesAsync(RememberCredentialsFile);
-        var decryptedData = SteamKit2.CryptoHelper.SymmetricDecrypt(encryptedBytes, EncryptionKey);
+        var decryptedData = CryptoHelper.SymmetricDecrypt(encryptedBytes);
 
         savedCredentials = JsonSerializer.Deserialize(decryptedData, SavedCredentialsJsonContext.Default.SavedCredentials);
 
@@ -277,7 +272,7 @@ internal static class Program
                 WriteIndented = true,
             }).SavedCredentials);
 
-            var encryptedData = CryptoHelper.SymmetricEncrypt(json, EncryptionKey);
+            var encryptedData = CryptoHelper.SymmetricEncrypt(json);
 
             await File.WriteAllBytesAsync(RememberCredentialsFile, encryptedData);
         }
