@@ -586,8 +586,6 @@ internal static class Program
 
         if (steamid.AccountType == EAccountType.AnonUser)
         {
-            ExitToken.Cancel(); // No reconnect support for anonymous accounts
-
             AnsiConsole.WriteLine("Logged on, requesting package for anonymous users...");
 
             const uint ANONYMOUS_PACKAGE = 17906;
