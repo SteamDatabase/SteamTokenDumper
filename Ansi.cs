@@ -7,7 +7,7 @@ static class Ansi
 {
     // https://conemu.github.io/en/AnsiEscapeCodes.html#ConEmu_specific_OSC
     // https://learn.microsoft.com/en-us/windows/terminal/tutorials/progress-bar-sequences
-    public enum ProgressState
+    internal enum ProgressState
     {
         Hidden = 0,
         Default = 1,
