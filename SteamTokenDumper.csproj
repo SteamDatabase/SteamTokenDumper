@@ -27,7 +27,7 @@
     <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.0.2" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="Spectre.Console" Version="0.49.1" />
-    <PackageReference Include="SteamKit2" Version="3.0.0-Beta.2" />
+    <PackageReference Include="SteamKit2" Version="3.0.0-Beta.3" />
     <PackageReference Include="ValveKeyValue" Version="0.11.0.378" />
   </ItemGroup>
   <ItemGroup>
