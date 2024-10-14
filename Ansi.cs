@@ -26,6 +26,11 @@ static class Ansi
 
     public static void Progress(ProgressState state, byte progress = 0)
     {
+        if (OperatingSystem.IsLinux())
+        {
+            return;
+        }
+
         var caps = AnsiConsole.Profile.Capabilities;
 
         if (!caps.Interactive || !caps.Ansi || caps.Legacy)
