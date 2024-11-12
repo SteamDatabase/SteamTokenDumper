@@ -367,7 +367,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                             var depotfromapp = depot["depotfromapp"].AsUnsignedInteger();
 
                             // common redistributables and steam sdk
-                            if (depotfromapp == 1007 || depotfromapp == 228980)
+                            if (depotfromapp is 1007 or 228980)
                             {
                                 continue;
                             }

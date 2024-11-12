@@ -74,7 +74,7 @@ internal static class SteamClientData
         using var reader = new BinaryReader(fs);
         var magic = reader.ReadUInt32();
 
-        if (magic != 0x07_56_44_27 && magic != 0x07_56_44_28 && magic != 0x07_56_44_29)
+        if (magic is not 0x07_56_44_27 and not 0x07_56_44_28 and not 0x07_56_44_29)
         {
             throw new InvalidDataException($"Unknown appinfo.vdf magic: {magic:X}");
         }

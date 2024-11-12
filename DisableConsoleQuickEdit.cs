@@ -5,8 +5,8 @@ namespace SteamTokenDumper;
 
 internal static partial class WindowsDisableConsoleQuickEdit
 {
-    const uint EnableQuickEdit = 0x0040;
-    const int StandardInputHandle = -10;
+    private const uint EnableQuickEdit = 0x0040;
+    private const int StandardInputHandle = -10;
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [LibraryImport("kernel32.dll", SetLastError = true)]

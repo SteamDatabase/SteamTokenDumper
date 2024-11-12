@@ -1,2 +1,3 @@
 [*.cs]
 csharp_style_namespace_declarations = file_scoped:warning
+csharp_style_unused_value_expression_statement_preference = false

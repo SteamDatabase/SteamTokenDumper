@@ -173,7 +173,7 @@ internal static class Program
 
                 await ApiClient.SendTokens(Payload, Configuration);
             }
-            else if (savedCredentials.Username != "anonymous" && savedCredentials.Username != "qr")
+            else if (savedCredentials.Username is not "anonymous" and not "qr")
             {
                 pass = AnsiConsole.Prompt(new TextPrompt<string>("Enter your Steam password:")
                 {
@@ -521,11 +521,12 @@ internal static class Program
                         .RoundedBorder()
                 );
             }
-            else if (callback.Result == EResult.InvalidPassword
-            || callback.Result == EResult.InvalidSignature
-            || callback.Result == EResult.AccessDenied
-            || callback.Result == EResult.Expired
-            || callback.Result == EResult.Revoked)
+            else if (callback.Result
+                is EResult.InvalidPassword
+                or EResult.InvalidSignature
+                or EResult.AccessDenied
+                or EResult.Expired
+                or EResult.Revoked)
             {
                 isAskingForInput = true;
                 reconnectCount = 0;
