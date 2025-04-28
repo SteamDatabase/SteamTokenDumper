@@ -21,7 +21,7 @@ internal sealed class ApiClient : IDisposable
 
     public const string Token = "@STEAMDB_BUILD_TOKEN@";
     private const string Endpoint = "https://tokendumper.steamdb.info";
-    private HttpClient HttpClient = new();
+    public HttpClient HttpClient { get; private set; } = new();
 
     public ApiClient()
     {

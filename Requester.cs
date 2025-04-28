@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using Spectre.Console;
 using SteamKit2;
@@ -20,7 +23,8 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
     public List<PICSRequest> ProcessLicenseList(LicenseListCallback licenseList)
     {
-        var packages = new List<PICSRequest>();
+        var packages = new List<PICSRequest>(licenseList.LicenseList.Count);
+        payload.Subs.EnsureCapacity(packages.Count);
 
         foreach (var license in licenseList.LicenseList)
         {
@@ -49,8 +53,46 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         return packages;
     }
 
-    public async Task ProcessPackages(List<PICSRequest> packages)
+    public async Task ProcessPackages(List<PICSRequest> packages, List<uint> storePackages)
     {
+        if (storePackages.Count > 0 && !config.SkipAutoGrant) // Just ignore store data if user configured to skip autogrant packages
+        {
+            var ownedPackages = new HashSet<uint>(Math.Max(packages.Count, storePackages.Count));
+            var onlyStorePackages = new List<uint>();
+
+            foreach (var package in packages)
+            {
+                ownedPackages.Add(package.ID);
+            }
+
+            foreach (var package in storePackages)
+            {
+                if (!ownedPackages.Contains(package))
+                {
+                    onlyStorePackages.Add(package);
+                }
+            }
+
+            if (onlyStorePackages.Count > 0)
+            {
+                AnsiConsole.MarkupLine($"You own {onlyStorePackages.Count} licenses that the Steam client does not know about.");
+
+                var tokensTask = steamApps.PICSGetAccessTokens([], onlyStorePackages);
+                tokensTask.Timeout = Timeout;
+                var tokens = await tokensTask;
+
+                foreach (var (key, value) in tokens.PackageTokens)
+                {
+                    packages.Add(new PICSRequest(key, value));
+
+                    if (value > 0)
+                    {
+                        payload.Subs[key.ToString(CultureInfo.InvariantCulture)] = value.ToString(CultureInfo.InvariantCulture);
+                    }
+                }
+            }
+        }
+
         AnsiConsole.WriteLine();
         AnsiConsole.MarkupLine($"Licenses: [green]{packages.Count}[/] - Package tokens: [green]{packages.Count(x => x.AccessToken != 0)}[/]");
 
@@ -207,7 +249,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
     private async Task Request(ProgressTask progress, ProgressTask progressTokens, ProgressTask progressDepots, HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
     {
-        var appInfoRequests = new List<PICSRequest>();
+        var appInfoRequests = new List<PICSRequest>(ItemsPerRequest);
         var tokensCount = 0;
         var tokensDeniedCount = 0;
         var tokensNonZeroCount = 0;
@@ -308,7 +350,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                         SomeRequestFailed = true;
                     }
                 }
-            };
+            }
 
             foreach (var chunk in appInfoRequests.AsEnumerable().Reverse().Chunk(ItemsPerRequest))
             {
@@ -467,6 +509,38 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         }
 
         progress.StopTask();
+    }
+
+    public static async Task<List<uint>> GetOwnedFromStore(SteamClient steamClient, string refreshToken, HttpClient httpClient)
+    {
+        AnsiConsole.WriteLine("Requesting owned licenses from the store...");
+
+        try
+        {
+            var newToken = await steamClient.Authentication.GenerateAccessTokenForAppAsync(steamClient.SteamID, refreshToken, allowRenewal: false);
+
+            ArgumentNullException.ThrowIfNullOrEmpty(newToken.AccessToken);
+
+            using var requestMessage = new HttpRequestMessage(HttpMethod.Get, "https://store.steampowered.com/dynamicstore/userdata");
+
+            var cookie = string.Concat(steamClient.SteamID.ConvertToUInt64().ToString(), "||", newToken.AccessToken);
+            requestMessage.Headers.Add("Cookie", string.Concat("steamLoginSecure=", WebUtility.UrlEncode(cookie)));
+
+            var response = await httpClient.SendAsync(requestMessage);
+            response.EnsureSuccessStatusCode();
+
+            var data = await response.Content.ReadFromJsonAsync(StoreUserDataJsonContext.Default.StoreUserData);
+
+            AnsiConsole.WriteLine($"Store says you own {data.OwnedPackages.Count} licenses.");
+
+            return data.OwnedPackages;
+        }
+        catch (Exception e)
+        {
+            AnsiConsole.WriteLine($"Failed to get userdata: {e.GetType()} {e.Message}");
+        }
+
+        return [];
     }
 
     private static async Task AwaitReconnectIfDisconnected()

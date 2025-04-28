@@ -664,7 +664,8 @@ internal static class Program
 
     private static async Task DoRequest(Requester requester, List<SteamApps.PICSRequest> packages)
     {
-        await requester.ProcessPackages(packages);
+        var storePackages = await Requester.GetOwnedFromStore(steamClient, savedCredentials.RefreshToken, ApiClient.HttpClient);
+        await requester.ProcessPackages(packages, storePackages);
 
         var success = await ApiClient.SendTokens(Payload, Configuration);
 
