@@ -14,7 +14,7 @@ internal sealed class Payload
     public string Token { get; } = ApiClient.Token;
 
     [JsonPropertyName("steamid")]
-    public string SteamID { get; set; }
+    public string SteamID { get; set; } = string.Empty;
 
     [JsonPropertyName("apps")]
     public Dictionary<string, string> Apps { get; } = [];

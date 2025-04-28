@@ -12,7 +12,8 @@ using Spectre.Console;
 using SteamKit2;
 using SteamKit2.Authentication;
 
-#pragma warning disable CA1031 // Do not catch general exception types
+#nullable disable
+
 [assembly: CLSCompliant(false)]
 namespace SteamTokenDumper;
 

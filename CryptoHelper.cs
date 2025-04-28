@@ -48,14 +48,13 @@ internal static class CryptoHelper
         return aes.DecryptCbc(input[iv.Length..], iv, PaddingMode.PKCS7);
     }
 
-    private static string GetMachineGuid()
+    private static string? GetMachineGuid()
     {
         if (!OperatingSystem.IsWindows())
         {
             return null;
         }
 
-#pragma warning disable CA1031 // Do not catch general exception types
         try
         {
             using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
@@ -73,6 +72,5 @@ internal static class CryptoHelper
         {
             return null;
         }
-#pragma warning restore CA1031
     }
 }

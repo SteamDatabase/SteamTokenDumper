@@ -12,7 +12,6 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Spectre.Console;
 
-#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
 internal sealed class ApiClient : IDisposable
@@ -34,8 +33,7 @@ internal sealed class ApiClient : IDisposable
 
     public void Dispose()
     {
-        HttpClient?.Dispose();
-        HttpClient = null;
+        HttpClient.Dispose();
     }
 
     public async Task<bool> SendTokens(Payload payload, Configuration config)
@@ -207,7 +205,7 @@ internal sealed class ApiClient : IDisposable
 
             using var reader = new StreamReader(await result.Content.ReadAsStreamAsync());
 
-            var count = await reader.ReadLineAsync();
+            var count = await reader.ReadLineAsync() ?? string.Empty;
             var countInt = int.Parse(count, CultureInfo.InvariantCulture);
             var list = new HashSet<uint>(countInt);
 

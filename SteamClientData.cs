@@ -6,7 +6,6 @@ using Microsoft.Win32;
 using Spectre.Console;
 using ValveKeyValue;
 
-#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
 internal static class SteamClientData
@@ -197,7 +196,7 @@ internal static class SteamClientData
         table.AddRow($"Got {depots.Count()} depot keys from config.vdf");
     }
 
-    private static string GetSteamPath()
+    private static string? GetSteamPath()
     {
         if (OperatingSystem.IsWindows())
         {

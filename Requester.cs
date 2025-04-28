@@ -10,7 +10,6 @@ using Spectre.Console;
 using SteamKit2;
 using static SteamKit2.SteamApps;
 
-#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
 internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Configuration config)
@@ -152,7 +151,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         foreach (var chunk in subInfoRequests.Chunk(ItemsPerRequest))
         {
-            AsyncJobMultiple<PICSProductInfoCallback>.ResultSet info = null;
+            AsyncJobMultiple<PICSProductInfoCallback>.ResultSet? info = null;
 
             for (var retry = 3; retry > 0; retry--)
             {
@@ -259,7 +258,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         foreach (var chunk in ownedApps.Chunk(ItemsPerRequest))
         {
-            PICSTokensCallback tokens = null;
+            PICSTokensCallback? tokens = null;
 
             for (var retry = 3; retry > 0; retry--)
             {
@@ -354,7 +353,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
             foreach (var chunk in appInfoRequests.AsEnumerable().Reverse().Chunk(ItemsPerRequest))
             {
-                AsyncJobMultiple<PICSProductInfoCallback>.ResultSet appInfo = null;
+                AsyncJobMultiple<PICSProductInfoCallback>.ResultSet? appInfo = null;
 
                 for (var retry = 3; retry > 0; retry--)
                 {
@@ -517,19 +516,24 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         try
         {
-            var newToken = await steamClient.Authentication.GenerateAccessTokenForAppAsync(steamClient.SteamID, refreshToken, allowRenewal: false);
+            var steamid = steamClient.SteamID;
+            ArgumentNullException.ThrowIfNull(steamid);
+
+            var newToken = await steamClient.Authentication.GenerateAccessTokenForAppAsync(steamid, refreshToken, allowRenewal: false);
 
             ArgumentNullException.ThrowIfNullOrEmpty(newToken.AccessToken);
 
             using var requestMessage = new HttpRequestMessage(HttpMethod.Get, "https://store.steampowered.com/dynamicstore/userdata");
 
-            var cookie = string.Concat(steamClient.SteamID.ConvertToUInt64().ToString(), "||", newToken.AccessToken);
+            var cookie = string.Concat(steamid.ConvertToUInt64().ToString(), "||", newToken.AccessToken);
             requestMessage.Headers.Add("Cookie", string.Concat("steamLoginSecure=", WebUtility.UrlEncode(cookie)));
 
             var response = await httpClient.SendAsync(requestMessage);
             response.EnsureSuccessStatusCode();
 
             var data = await response.Content.ReadFromJsonAsync(StoreUserDataJsonContext.Default.StoreUserData);
+
+            ArgumentNullException.ThrowIfNull(data);
 
             AnsiConsole.WriteLine($"Store says you own {data.OwnedPackages.Count} licenses.");
 

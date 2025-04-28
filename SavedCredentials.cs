@@ -2,7 +2,6 @@
 
 namespace SteamTokenDumper;
 
-#nullable enable
 internal sealed class SavedCredentials
 {
     public const uint CurrentVersion = 1679580480; // 2023-03-24

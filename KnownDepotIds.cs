@@ -8,13 +8,12 @@ using System.Text;
 using System.Threading.Tasks;
 using Spectre.Console;
 
-#pragma warning disable CA1031 // Do not catch general exception types
 namespace SteamTokenDumper;
 
 internal sealed class KnownDepotIds
 {
     public readonly HashSet<uint> PreviouslySent = [];
-    public ImmutableHashSet<uint> Server;
+    public ImmutableHashSet<uint> Server = [];
     private readonly string KnownDepotIdsPath = Path.Combine(Program.AppPath, "SteamTokenDumper.depots.txt");
 
     public async Task Load(ApiClient apiClient)
