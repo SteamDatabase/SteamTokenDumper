@@ -97,7 +97,7 @@ internal static class Program
         {
             SinkUnreadKeys();
 
-            if (!AnsiConsole.Confirm("Are you sure you want to continue?", false))
+            if (!await AnsiConsole.ConfirmAsync("Are you sure you want to continue?", false))
             {
                 AnsiConsole.WriteLine("Press any key to exit...");
                 Console.ReadKey();
