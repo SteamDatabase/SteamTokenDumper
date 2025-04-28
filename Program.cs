@@ -437,7 +437,6 @@ internal static class Program
         {
             LoginID = 0x44_55_4D_50, // "DUMP"
             Username = savedCredentials.Username,
-            Password = savedCredentials.RefreshToken == null ? pass : null,
             AccessToken = savedCredentials.RefreshToken,
             ShouldRememberPassword = Configuration.RememberLogin,
         });
