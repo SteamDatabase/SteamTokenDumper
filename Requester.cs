@@ -56,7 +56,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
     {
         if (storePackages.Count > 0 && !config.SkipAutoGrant) // Just ignore store data if user configured to skip autogrant packages
         {
-            var ownedPackages = new HashSet<uint>(Math.Max(packages.Count, storePackages.Count));
+            var ownedPackages = new HashSet<uint>(packages.Count);
             var onlyStorePackages = new List<uint>();
 
             foreach (var package in packages)
