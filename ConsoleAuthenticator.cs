@@ -4,7 +4,7 @@ using SteamKit2.Authentication;
 
 namespace SteamTokenDumper;
 
-internal sealed class ConsoleAuthenticator : IAuthenticator
+internal sealed class ConsoleAuthenticator(bool SkipDeviceConfirmation) : IAuthenticator
 {
     /// <inheritdoc />
     public async Task<string> GetDeviceCodeAsync(bool previousCodeWasIncorrect)
@@ -35,6 +35,11 @@ internal sealed class ConsoleAuthenticator : IAuthenticator
     /// <inheritdoc />
     public Task<bool> AcceptDeviceConfirmationAsync()
     {
+        if (SkipDeviceConfirmation)
+        {
+            return Task.FromResult(false);
+        }
+
         AnsiConsole.MarkupLine("[green][bold]STEAM GUARD![/][/] Use the Steam Mobile App to confirm your sign in...");
 
         return Task.FromResult(true);

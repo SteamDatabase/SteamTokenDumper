@@ -387,7 +387,7 @@ internal static class Program
                         Username = savedCredentials.Username,
                         IsPersistentSession = Configuration.RememberLogin,
                         DeviceFriendlyName = nameof(SteamTokenDumper),
-                        Authenticator = new ConsoleAuthenticator(),
+                        Authenticator = new ConsoleAuthenticator(Configuration.LoginSkipAppConfirmation),
                     });
                 }
             }

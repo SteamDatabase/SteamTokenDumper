@@ -10,6 +10,7 @@ namespace SteamTokenDumper;
 internal sealed class Configuration
 {
     public bool RememberLogin { get; private set; }
+    public bool LoginSkipAppConfirmation { get; private set; }
     public bool SkipAutoGrant { get; private set; }
     public bool VerifyBeforeSubmit { get; private set; } = true;
     public bool UserConsentBeforeRun { get; private set; } = true;
@@ -40,6 +41,9 @@ internal sealed class Configuration
             {
                 case "RememberLogin":
                     RememberLogin = option[1] == "1";
+                    break;
+                case "LoginSkipAppConfirmation":
+                    LoginSkipAppConfirmation = option[1] == "1";
                     break;
                 case "SkipAutoGrant":
                     SkipAutoGrant = option[1] == "1";
