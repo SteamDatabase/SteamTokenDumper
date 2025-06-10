@@ -41,6 +41,7 @@ internal sealed class ConsoleAuthenticator(bool SkipDeviceConfirmation) : IAuthe
         }
 
         AnsiConsole.MarkupLine("[green][bold]STEAM GUARD![/][/] Use the Steam Mobile App to confirm your sign in...");
+        AnsiConsole.MarkupLine("If you want to enter a two-factor code instead, take a look at the config file.");
 
         return Task.FromResult(true);
     }
