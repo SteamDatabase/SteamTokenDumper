@@ -48,6 +48,7 @@ internal static class Program
     {
         WindowsDisableConsoleQuickEdit.Disable();
 
+        Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.Title = "SteamDB Token Dumper";
 
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
