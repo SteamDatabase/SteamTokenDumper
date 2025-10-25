@@ -31,7 +31,7 @@ internal static class SteamClientData
                     return;
                 }
 
-                table.AddRow($"Found Steam at {steamLocation}");
+                table.AddRow(new Text($"Found Steam at {steamLocation}"));
                 ctx.Refresh();
 
                 try
@@ -40,7 +40,7 @@ internal static class SteamClientData
                 }
                 catch (Exception e)
                 {
-                    table.AddRow($"Failed to parse appinfo: {e}");
+                    table.AddRow(new Text($"Failed to parse appinfo: {e}", new Style(Color.Red)));
                 }
 
                 ctx.Refresh();
@@ -51,7 +51,7 @@ internal static class SteamClientData
                 }
                 catch (Exception e)
                 {
-                    table.AddRow($"Failed to parse packageinfo: {e}");
+                    table.AddRow(new Text($"Failed to parse packageinfo: {e}", new Style(Color.Red)));
                 }
 
                 ctx.Refresh();
@@ -62,7 +62,7 @@ internal static class SteamClientData
                 }
                 catch (Exception e)
                 {
-                    table.AddRow($"Failed to parse config: {e}");
+                    table.AddRow(new Text($"Failed to parse config: {e}", new Style(Color.Red)));
                 }
             });
     }
@@ -189,7 +189,14 @@ internal static class SteamClientData
                     continue;
                 }
 
-                payload.Depots[depot.Name] = depotKey.ToString(CultureInfo.InvariantCulture).ToUpperInvariant();
+                var depotKeyString = depotKey.ToString(CultureInfo.InvariantCulture).ToUpperInvariant();
+
+                if (depotKeyString.Length != 64 || depotKeyString.Any(static x => !char.IsAsciiHexDigitUpper(x)))
+                {
+                    throw new InvalidDataException($"Corrupted depot key");
+                }
+
+                payload.Depots[depot.Name] = depotKeyString;
             }
         }
 
