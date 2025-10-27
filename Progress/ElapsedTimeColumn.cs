@@ -12,14 +12,14 @@ internal sealed class ElapsedTimeColumn : ProgressColumn
     /// <inheritdoc/>
     public override IRenderable Render(RenderOptions options, ProgressTask task, TimeSpan deltaTime)
     {
-        var elatimesed = task.ElapsedTime;
+        var elapsed = task.ElapsedTime;
 
-        if (elatimesed == null || elatimesed.Value.TotalMinutes >= 60 || elatimesed.Value.Ticks == 0)
+        if (elapsed == null || elapsed.Value.TotalMinutes >= 60 || elapsed.Value.Ticks == 0)
         {
             return new Text(string.Empty);
         }
 
-        return new Text($"{elatimesed.Value:mm\\:ss}", Color.Blue);
+        return new Text($"{elapsed.Value:mm\\:ss}", Color.Blue);
     }
 
     /// <inheritdoc/>

@@ -168,7 +168,7 @@ internal static class SteamClientData
             });
         }
 
-        // For some inexplicable reason these keys can have different capilizations
+        // For some inexplicable reason these keys can have different capitalizations
         var depots = (data.Children
             ?.FirstOrDefault(k => k.Name.Equals("software", StringComparison.OrdinalIgnoreCase))
             ?.FirstOrDefault(k => k.Name.Equals("valve", StringComparison.OrdinalIgnoreCase))

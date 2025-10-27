@@ -84,7 +84,7 @@ internal static class Program
         );
 
         AnsiConsole.Write(
-            new Panel(new Text("If you are in a closed or limited beta, have a non disclosure agreement,\nor otherwise do not want to leak private information, do not use this program.", new Style(Color.Yellow)))
+            new Panel(new Text("If you are in a closed or limited beta, have a non-disclosure agreement,\nor otherwise do not want to leak private information, do not use this program.", new Style(Color.Yellow)))
                 .BorderColor(Color.GreenYellow)
                 .RoundedBorder()
         );
@@ -470,7 +470,7 @@ internal static class Program
         AnsiConsole.WriteLine();
         AnsiConsole.Write(new Panel(canvas)
         {
-            Header = new(" Use the Steam Mobile App to sign in via QR code ", Justify.Center)
+            Header = new(" Use the Steam Mobile App to log in via QR code ", Justify.Center)
         }.RoundedBorder());
     }
 
@@ -558,7 +558,7 @@ internal static class Program
             else
             {
                 AnsiConsole.Write(
-                    new Panel(new Text($"Unable to logon to Steam: {callback.Result} ({callback.ExtendedResult})", new Style(Color.Red)))
+                    new Panel(new Text($"Unable to log in to Steam: {callback.Result} ({callback.ExtendedResult})", new Style(Color.Red)))
                         .BorderColor(Color.Red)
                         .RoundedBorder()
                 );
@@ -573,7 +573,7 @@ internal static class Program
 
         if (licenseListReceived)
         {
-            AnsiConsole.WriteLine("Logged on, continuing...");
+            AnsiConsole.WriteLine("Logged in, continuing...");
 
             ReconnectEvent.SetResult(true);
             ReconnectEvent = new();
@@ -588,7 +588,7 @@ internal static class Program
 
         if (steamid.AccountType == EAccountType.AnonUser)
         {
-            AnsiConsole.WriteLine("Logged on, requesting package for anonymous users...");
+            AnsiConsole.WriteLine("Logged in, requesting package for anonymous users...");
 
             const uint ANONYMOUS_PACKAGE = 17906;
 
@@ -607,7 +607,7 @@ internal static class Program
         }
         else
         {
-            AnsiConsole.WriteLine("Logged on, waiting for licenses...");
+            AnsiConsole.WriteLine("Logged in, waiting for licenses...");
         }
     }
 

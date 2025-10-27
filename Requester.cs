@@ -541,7 +541,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         }
         catch (Exception e)
         {
-            AnsiConsole.WriteLine($"Failed to get userdata: {e.GetType()} {e.Message}");
+            AnsiConsole.WriteLine($"Failed to get user data from the store: {e.GetType()} {e.Message}");
         }
 
         return [];

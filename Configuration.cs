@@ -103,7 +103,7 @@ internal sealed class Configuration
 
         if (SkipApps.Count > 0)
         {
-            AnsiConsole.MarkupLine($"Will skip these appids: [yellow]{string.Join(", ", SkipApps)}[/]");
+            AnsiConsole.MarkupLine($"Will skip these app ids: [yellow]{string.Join(", ", SkipApps)}[/]");
         }
     }
 }
