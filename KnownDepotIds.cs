@@ -14,7 +14,7 @@ internal sealed class KnownDepotIds
 {
     public readonly HashSet<uint> PreviouslySent = [];
     public ImmutableHashSet<uint> Server = [];
-    private readonly string KnownDepotIdsPath = Path.Combine(Program.AppPath, "SteamTokenDumper.depots.txt");
+    private readonly string KnownDepotIdsPath = Path.Combine(Application.AppPath, "SteamTokenDumper.depots.txt");
 
     public async Task Load(ApiClient apiClient)
     {

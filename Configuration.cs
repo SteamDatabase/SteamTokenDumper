@@ -20,7 +20,7 @@ internal sealed class Configuration
 
     public async Task Load()
     {
-        var path = Path.Combine(Program.AppPath, "SteamTokenDumper.config.ini");
+        var path = Path.Combine(Application.AppPath, "SteamTokenDumper.config.ini");
         var lines = await File.ReadAllLinesAsync(path);
 
         foreach (var line in lines)

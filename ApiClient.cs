@@ -24,7 +24,7 @@ internal sealed class ApiClient : IDisposable
 
     public ApiClient()
     {
-        var appVersion = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        var appVersion = typeof(Application).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
         HttpClient.DefaultRequestVersion = HttpVersion.Version30;
         HttpClient.Timeout = TimeSpan.FromMinutes(10);
@@ -41,7 +41,7 @@ internal sealed class ApiClient : IDisposable
         if (config.DumpPayload)
         {
             var payloadDump = new PayloadDump(payload);
-            var file = Path.Combine(Program.AppPath, "SteamTokenDumper.payload.json");
+            var file = Path.Combine(Application.AppPath, "SteamTokenDumper.payload.json");
 
             try
             {
@@ -129,7 +129,7 @@ internal sealed class ApiClient : IDisposable
                             output = output.Replace("\n", "\r\n", StringComparison.Ordinal);
                         }
 
-                        await File.AppendAllTextAsync(Path.Combine(Program.AppPath, "SteamTokenDumper.result.log"), output);
+                        await File.AppendAllTextAsync(Path.Combine(Application.AppPath, "SteamTokenDumper.result.log"), output);
                     }
                     catch (Exception)
                     {

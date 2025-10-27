@@ -12,7 +12,7 @@ using static SteamKit2.SteamApps;
 
 namespace SteamTokenDumper;
 
-internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Configuration config)
+internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Program app)
 {
     private const int ItemsPerRequest = 200;
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);
@@ -30,7 +30,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             packages.Add(new PICSRequest(license.PackageID, license.AccessToken));
 
             // Request autogrant packages so we can automatically skip all apps inside of it
-            if (config.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
+            if (app.Configuration.SkipAutoGrant && license.PaymentMethod == EPaymentMethod.AutoGrant)
             {
                 skippedPackages.Add(license.PackageID);
                 continue;
@@ -54,7 +54,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
     public async Task ProcessPackages(List<PICSRequest> packages, List<uint> storePackages)
     {
-        if (storePackages.Count > 0 && !config.SkipAutoGrant) // Just ignore store data if user configured to skip autogrant packages
+        if (storePackages.Count > 0 && !app.Configuration.SkipAutoGrant) // Just ignore store data if user configured to skip autogrant packages
         {
             var ownedPackages = new HashSet<uint>(packages.Count);
             var onlyStorePackages = new List<uint>();
@@ -197,7 +197,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                             continue;
                         }
 
-                        if (config.SkipApps.Contains(appid))
+                        if (app.Configuration.SkipApps.Contains(appid))
                         {
                             skippedApps.Add(appid);
                             continue;
@@ -224,7 +224,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         progress.StopTask();
 
-        foreach (var appid in config.SkipApps)
+        foreach (var appid in app.Configuration.SkipApps)
         {
             if (payload.Apps.Remove(appid.ToString(CultureInfo.InvariantCulture)))
             {
@@ -469,9 +469,9 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                     }
                 }
 
-                if (!Program.IsConnected)
+                if (!app.IsConnected)
                 {
-                    await Program.ReconnectEvent.Task;
+                    await app.ReconnectEvent.Task;
                 }
 
                 if (allKeyRequests.Count > 0)
@@ -547,9 +547,9 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         return [];
     }
 
-    private static async Task AwaitReconnectIfDisconnected()
+    private async Task AwaitReconnectIfDisconnected()
     {
-        if (Program.IsConnected)
+        if (app.IsConnected)
         {
             await Task.Delay(200 + Random.Shared.Next(1001));
             return;
@@ -557,6 +557,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
         AnsiConsole.MarkupLine("[red]Disconnected from Steam while requesting, will continue after logging in again.[/]");
 
-        await Program.ReconnectEvent.Task;
+        await app.ReconnectEvent.Task;
     }
 }

@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -12,55 +10,65 @@ using Spectre.Console;
 using SteamKit2;
 using SteamKit2.Authentication;
 
-#nullable disable
-
-[assembly: CLSCompliant(false)]
 namespace SteamTokenDumper;
 
-internal static class Program
+internal sealed class Program : IDisposable
 {
-    private static SteamClient steamClient;
-    private static CallbackManager manager;
+    private readonly SteamClient steamClient;
+    private readonly CallbackManager manager;
+    private readonly SteamUser steamUser;
 
-    private static SteamUser steamUser;
+    private bool licenseListReceived;
+    private bool isAskingForInput;
+    private bool suggestedQrCode;
+    private readonly CancellationTokenSource ExitToken = new();
 
-    private static bool licenseListReceived;
-    private static bool isAskingForInput;
-    private static bool suggestedQrCode;
-    private static readonly CancellationTokenSource ExitToken = new();
+    private string? pass;
+    private SavedCredentials savedCredentials = new();
+    private AuthSession? authSession;
+    private int reconnectCount;
 
-    private static string pass;
-    private static SavedCredentials savedCredentials = new();
-    private static AuthSession authSession;
-    private static int reconnectCount;
+    private readonly ApiClient ApiClient = new();
+    private readonly Payload Payload = new();
+    private readonly KnownDepotIds KnownDepotIds = new();
+    private readonly string RememberCredentialsFile;
 
-    private static readonly Configuration Configuration = new();
-    private static readonly ApiClient ApiClient = new();
-    private static readonly Payload Payload = new();
-    private static KnownDepotIds KnownDepotIds;
-    private static string RememberCredentialsFile;
-    public static string AppPath { get; private set; }
+    public readonly Configuration Configuration = new();
+    public bool IsConnected => steamClient.IsConnected;
+    public TaskCompletionSource<bool> ReconnectEvent { get; private set; } = new();
 
-    public static bool IsConnected => steamClient.IsConnected;
-    public static TaskCompletionSource<bool> ReconnectEvent { get; private set; } = new();
-
-    public static async Task Main()
+    public Program()
     {
-        WindowsDisableConsoleQuickEdit.Disable();
+        DebugLog.AddListener(new SteamKitLogger());
+        DebugLog.Enabled = Configuration.Debug;
 
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
-        Console.Title = "SteamDB Token Dumper";
+        var config = SteamConfiguration.Create(b => b
+            .WithProtocolTypes(ProtocolTypes.WebSocket)
+        );
 
-        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-        CultureInfo.DefaultThreadCurrentUICulture = CultureInfo.InvariantCulture;
+        steamClient = new SteamClient(config, "Dumper");
+        manager = new CallbackManager(steamClient);
+        manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
+        manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
+        manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
+        manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
 
-        AppPath = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule?.FileName);
-        RememberCredentialsFile = Path.Combine(AppPath, "SteamTokenDumper.credentials.bin");
-        KnownDepotIds = new();
+        steamUser = steamClient.GetHandler<SteamUser>()!;
 
+        RememberCredentialsFile = Path.Combine(Application.AppPath, "SteamTokenDumper.credentials.bin");
+    }
+
+    public void Dispose()
+    {
+        ExitToken.Dispose();
+        ApiClient.Dispose();
+    }
+
+    public async Task RunAsync()
+    {
         try
         {
-            var sentryHashFile = Path.Combine(AppPath, "SteamTokenDumper.sentryhash.bin");
+            var sentryHashFile = Path.Combine(Application.AppPath, "SteamTokenDumper.sentryhash.bin");
 
             if (File.Exists(sentryHashFile))
             {
@@ -146,7 +154,7 @@ internal static class Program
 
             AnsiConsole.WriteLine();
 
-            await InitializeSteamKit();
+            await SteamLoop();
         }
         else
         {
@@ -182,11 +190,11 @@ internal static class Program
                     IsSecret = true
                 });
 
-                await InitializeSteamKit();
+                await SteamLoop();
             }
             else
             {
-                await InitializeSteamKit();
+                await SteamLoop();
             }
         }
 
@@ -196,7 +204,7 @@ internal static class Program
         Console.ReadKey();
     }
 
-    private static async Task ReadConfiguration()
+    private async Task ReadConfiguration()
     {
         try
         {
@@ -233,7 +241,7 @@ internal static class Program
         }
     }
 
-    private static async Task ReadCredentials()
+    private async Task ReadCredentials()
     {
         if (!Configuration.RememberLogin)
         {
@@ -248,16 +256,18 @@ internal static class Program
         var encryptedBytes = await File.ReadAllBytesAsync(RememberCredentialsFile);
         var decryptedData = CryptoHelper.SymmetricDecrypt(encryptedBytes);
 
-        savedCredentials = JsonSerializer.Deserialize(decryptedData, SavedCredentialsJsonContext.Default.SavedCredentials);
+        var parsedSaved = JsonSerializer.Deserialize(decryptedData, SavedCredentialsJsonContext.Default.SavedCredentials);
 
-        if (savedCredentials.Version != SavedCredentials.CurrentVersion)
+        if (parsedSaved?.Version != SavedCredentials.CurrentVersion)
         {
             savedCredentials = new();
             throw new InvalidDataException($"Got incorrect saved credentials version.");
         }
+
+        savedCredentials = parsedSaved;
     }
 
-    private static async Task SaveCredentials()
+    private async Task SaveCredentials()
     {
         if (!Configuration.RememberLogin)
         {
@@ -285,7 +295,7 @@ internal static class Program
         }
     }
 
-    private static void ReadCredentialsAgain()
+    private void ReadCredentialsAgain()
     {
         isAskingForInput = true;
 
@@ -317,25 +327,8 @@ internal static class Program
         steamClient.Connect();
     }
 
-    private static async Task InitializeSteamKit()
+    private async Task SteamLoop()
     {
-        DebugLog.AddListener(new SteamKitLogger());
-        DebugLog.Enabled = Configuration.Debug;
-
-        var config = SteamConfiguration.Create(b => b
-            .WithProtocolTypes(ProtocolTypes.WebSocket)
-        );
-
-        steamClient = new SteamClient(config, "Dumper");
-        manager = new CallbackManager(steamClient);
-
-        steamUser = steamClient.GetHandler<SteamUser>();
-
-        manager.Subscribe<SteamClient.ConnectedCallback>(OnConnected);
-        manager.Subscribe<SteamClient.DisconnectedCallback>(OnDisconnected);
-        manager.Subscribe<SteamUser.LoggedOnCallback>(OnLoggedOn);
-        manager.Subscribe<SteamApps.LicenseListCallback>(OnLicenseList);
-
         AnsiConsole.WriteLine("Connecting to Steam...");
 
         steamClient.Connect();
@@ -353,7 +346,7 @@ internal static class Program
         }
     }
 
-    private static async void OnConnected(SteamClient.ConnectedCallback callback)
+    private async void OnConnected(SteamClient.ConnectedCallback callback)
     {
         AnsiConsole.WriteLine("Connected to Steam");
 
@@ -474,7 +467,7 @@ internal static class Program
         }.RoundedBorder());
     }
 
-    private static void OnDisconnected(SteamClient.DisconnectedCallback callback)
+    private void OnDisconnected(SteamClient.DisconnectedCallback callback)
     {
         if (ExitToken.IsCancellationRequested)
         {
@@ -510,7 +503,7 @@ internal static class Program
         steamClient.Connect();
     }
 
-    private static void OnLoggedOn(SteamUser.LoggedOnCallback callback)
+    private void OnLoggedOn(SteamUser.LoggedOnCallback callback)
     {
         if (callback.Result != EResult.OK)
         {
@@ -592,11 +585,11 @@ internal static class Program
 
             const uint ANONYMOUS_PACKAGE = 17906;
 
-            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), KnownDepotIds, Configuration);
+            var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>()!, KnownDepotIds, this);
 
             Task.Run(async () =>
             {
-                var tokenJob = await steamClient.GetHandler<SteamApps>().PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
+                var tokenJob = await steamClient.GetHandler<SteamApps>()!.PICSGetAccessTokens(null, ANONYMOUS_PACKAGE);
                 tokenJob.PackageTokens.TryGetValue(ANONYMOUS_PACKAGE, out var token);
 
                 await DoRequest(requester,
@@ -611,7 +604,7 @@ internal static class Program
         }
     }
 
-    private static async Task RenewRefreshTokenIfRequired()
+    private async Task RenewRefreshTokenIfRequired()
     {
         if (!Configuration.RememberLogin || savedCredentials.RefreshToken == null)
         {
@@ -626,7 +619,7 @@ internal static class Program
 
             if (DateTime.UtcNow.Add(TimeSpan.FromDays(30)) >= token.ValidTo)
             {
-                var newToken = await steamClient.Authentication.GenerateAccessTokenForAppAsync(steamClient.SteamID, savedCredentials.RefreshToken, allowRenewal: true);
+                var newToken = await steamClient.Authentication.GenerateAccessTokenForAppAsync(steamClient.SteamID!, savedCredentials.RefreshToken, allowRenewal: true);
 
                 if (!string.IsNullOrEmpty(newToken.RefreshToken))
                 {
@@ -644,7 +637,7 @@ internal static class Program
         }
     }
 
-    private static void OnLicenseList(SteamApps.LicenseListCallback licenseList)
+    private void OnLicenseList(SteamApps.LicenseListCallback licenseList)
     {
         if (licenseListReceived)
         {
@@ -653,7 +646,7 @@ internal static class Program
 
         licenseListReceived = true;
 
-        var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>(), KnownDepotIds, Configuration);
+        var requester = new Requester(Payload, steamClient.GetHandler<SteamApps>()!, KnownDepotIds, this);
         var packages = requester.ProcessLicenseList(licenseList);
 
         Task.Factory.StartNew(
@@ -664,9 +657,9 @@ internal static class Program
         );
     }
 
-    private static async Task DoRequest(Requester requester, List<SteamApps.PICSRequest> packages)
+    private async Task DoRequest(Requester requester, List<SteamApps.PICSRequest> packages)
     {
-        var storePackages = await Requester.GetOwnedFromStore(steamClient, savedCredentials.RefreshToken, ApiClient.HttpClient);
+        var storePackages = await Requester.GetOwnedFromStore(steamClient, savedCredentials.RefreshToken!, ApiClient.HttpClient);
         await requester.ProcessPackages(packages, storePackages);
 
         var success = await ApiClient.SendTokens(Payload, Configuration);
