@@ -313,7 +313,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             progress.StartTask();
 
             var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
-            var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = ItemsPerRequest };
             var alreadySeen = new HashSet<uint>();
             var depotKeysRequested = 0;
             var depotKeysFailed = 0;

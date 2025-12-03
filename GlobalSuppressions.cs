@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 
 [assembly: SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task")]
 [assembly: SuppressMessage("Globalization", "CA1303:Do not pass literals as localized parameters")]
-[assembly: SuppressMessage("Reliability", "CA2007:Consider calling ConfigureAwait on the awaited task")]
 [assembly: SuppressMessage("Usage", "CA2234:Pass system uri objects instead of strings")]
 [assembly: SuppressMessage("Security", "CA5350:Do Not Use Weak Cryptographic Algorithms")]
 [assembly: SuppressMessage("Security", "CA5394:Do not use insecure randomness")]
