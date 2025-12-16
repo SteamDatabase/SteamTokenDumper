@@ -52,6 +52,11 @@ internal sealed class ApiClient : IDisposable
                 await File.WriteAllBytesAsync(file, json);
 
                 AnsiConsole.WriteLine($"Written payload dump to '{Path.GetFileName(file)}'. Modifying this file will not do anything.");
+
+                if (config.VerifyBeforeSubmit)
+                {
+                    AnsiConsole.WriteLine($"You can review this file before continuing.");
+                }
             }
             catch (Exception e)
             {

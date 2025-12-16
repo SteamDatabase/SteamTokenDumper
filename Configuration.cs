@@ -91,11 +91,6 @@ internal sealed class Configuration
             AnsiConsole.WriteLine("Will skip auto granted packages.");
         }
 
-        if (DumpPayload)
-        {
-            AnsiConsole.WriteLine("Will dump payload.");
-        }
-
         if (!VerifyBeforeSubmit)
         {
             AnsiConsole.WriteLine("Will not ask for confirmation before sending results.");
