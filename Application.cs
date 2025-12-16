@@ -15,6 +15,7 @@ internal static class Application
     {
         WindowsDisableConsoleQuickEdit.Disable();
 
+        Console.InputEncoding = System.Text.Encoding.UTF8;
         Console.OutputEncoding = System.Text.Encoding.UTF8;
         Console.Title = "SteamDB Token Dumper";
 
