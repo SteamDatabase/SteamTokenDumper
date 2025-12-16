@@ -38,12 +38,12 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Setup .NET Core
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 9.0.x
+        dotnet-version: 10.0.x
 
     # Prepare
     - name: Prepare on Windows
@@ -85,18 +85,18 @@ jobs:
 
     # Upload
     - name: Upload
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: SteamTokenDumper-${{ matrix.variant }}
         path: bin/SteamTokenDumper
 
     # Attest
-    - uses: actions/attest-build-provenance@v2
+    - uses: actions/attest-build-provenance@v3
       if: matrix.os == 'windows-latest'
       with:
         subject-path: 'bin/SteamTokenDumper/SteamTokenDumper.exe'
 
-    - uses: actions/attest-build-provenance@v2
+    - uses: actions/attest-build-provenance@v3
       if: matrix.os != 'windows-latest'
       with:
         subject-path: 'bin/SteamTokenDumper/SteamTokenDumper'
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Download artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         path: artifacts
 
