@@ -14,7 +14,10 @@ namespace SteamTokenDumper;
 
 internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepotIds knownDepotIds, Program app)
 {
-    private const int ItemsPerRequest = 200;
+    private const int TokensPerRequest = 5000;
+    private const int PackagesPerRequest = 2000;
+    private const int AppsPerRequest = 500;
+
     private static readonly TimeSpan Timeout = TimeSpan.FromMinutes(1);
     private bool SomeRequestFailed;
     private readonly HashSet<uint> skippedPackages = [];
@@ -22,8 +25,9 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
     public List<PICSRequest> ProcessLicenseList(LicenseListCallback licenseList)
     {
-        var packages = new List<PICSRequest>(licenseList.LicenseList.Count);
-        payload.Subs.EnsureCapacity(packages.Count);
+        var capacity = licenseList.LicenseList.Count;
+        var packages = new List<PICSRequest>(capacity);
+        payload.Subs.EnsureCapacity(capacity);
 
         foreach (var license in licenseList.LicenseList)
         {
@@ -149,7 +153,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         var apps = new HashSet<uint>();
         var depots = new HashSet<uint>();
 
-        foreach (var chunk in subInfoRequests.Chunk(ItemsPerRequest))
+        foreach (var chunk in subInfoRequests.Chunk(PackagesPerRequest))
         {
             AsyncJobMultiple<PICSProductInfoCallback>.ResultSet? info = null;
 
@@ -248,7 +252,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
 
     private async Task Request(ProgressTask progress, ProgressTask progressTokens, ProgressTask progressDepots, HashSet<uint> ownedApps, HashSet<uint> ownedDepots)
     {
-        var appInfoRequests = new List<PICSRequest>(ItemsPerRequest);
+        var appInfoRequests = new List<PICSRequest>(AppsPerRequest);
         var tokensCount = 0;
         var tokensDeniedCount = 0;
         var tokensNonZeroCount = 0;
@@ -256,7 +260,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
         progressTokens.MaxValue = ownedApps.Count;
         progressTokens.StartTask();
 
-        foreach (var chunk in ownedApps.Chunk(ItemsPerRequest))
+        foreach (var chunk in ownedApps.Chunk(TokensPerRequest))
         {
             PICSTokensCallback? tokens = null;
 
@@ -312,7 +316,6 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
             progress.MaxValue = appInfoRequests.Count;
             progress.StartTask();
 
-            var total = (-1L + appInfoRequests.Count + ItemsPerRequest) / ItemsPerRequest;
             var alreadySeen = new HashSet<uint>();
             var depotKeysRequested = 0;
             var depotKeysFailed = 0;
@@ -350,7 +353,7 @@ internal sealed class Requester(Payload payload, SteamApps steamApps, KnownDepot
                 }
             }
 
-            foreach (var chunk in appInfoRequests.AsEnumerable().Reverse().Chunk(ItemsPerRequest))
+            foreach (var chunk in appInfoRequests.AsEnumerable().Reverse().Chunk(AppsPerRequest))
             {
                 AsyncJobMultiple<PICSProductInfoCallback>.ResultSet? appInfo = null;
 
